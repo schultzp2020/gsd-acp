@@ -1,6 +1,6 @@
-import { readdirSync, readFileSync, statSync, openSync, readSync, closeSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync, openSync, readSync, closeSync, existsSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve, isAbsolute } from 'node:path'
 
 export type PiSessionListItem = {
   sessionId: string
@@ -16,11 +16,29 @@ const DEFAULT_HEAD_BYTES = 64 * 1024
 function getPiAgentDir(): string {
   // pi supports overriding config dir via PI_CODING_AGENT_DIR.
   // See pi README.
-  return process.env.PI_CODING_AGENT_DIR ?? join(homedir(), '.pi', 'agent')
+  return process.env.PI_CODING_AGENT_DIR ? resolve(process.env.PI_CODING_AGENT_DIR) : join(homedir(), '.pi', 'agent')
+}
+
+function readSessionDirFromSettings(agentDir: string): string | null {
+  const settingsPath = join(agentDir, 'settings.json')
+  try {
+    if (!existsSync(settingsPath)) return null
+    const raw = readFileSync(settingsPath, 'utf8')
+    const data = JSON.parse(raw) as unknown
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return null
+
+    const sessionDir = (data as Record<string, unknown>).sessionDir
+    if (typeof sessionDir !== 'string' || !sessionDir.trim()) return null
+
+    return isAbsolute(sessionDir) ? sessionDir : resolve(agentDir, sessionDir)
+  } catch {
+    return null
+  }
 }
 
 export function getPiSessionsDir(): string {
-  return join(getPiAgentDir(), 'sessions')
+  const agentDir = getPiAgentDir()
+  return readSessionDirFromSettings(agentDir) ?? join(agentDir, 'sessions')
 }
 
 function walkJsonlFiles(dir: string, out: string[]) {
