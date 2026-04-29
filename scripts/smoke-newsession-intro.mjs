@@ -17,7 +17,7 @@ p.stdout.on('data', d => {
 
     if (msg.id === 2) {
       sid = msg.result?.sessionId
-      console.log('session/new response _meta.piAcp.startupInfo present:', Boolean(msg.result?._meta?.piAcp?.startupInfo))
+      console.log('session/new response _meta.gsdAcp.startupInfo present:', Boolean(msg.result?._meta?.gsdAcp?.startupInfo))
     }
 
     if (msg.method === 'session/update') {
