@@ -1,6 +1,6 @@
 import type { AuthMethod } from '@agentclientprotocol/sdk'
 
-export const PI_SETUP_METHOD_ID = 'pi_terminal_login'
+export const GSD_SETUP_METHOD_ID = 'gsd_terminal_login'
 
 /**
  * Zed (and some other clients) currently support "Terminal Auth" via an extension field
@@ -14,9 +14,9 @@ export function getAuthMethods(opts?: { supportsTerminalAuthMeta?: boolean }): A
   const supportsTerminalAuthMeta = opts?.supportsTerminalAuthMeta ?? true
 
   const method: any = {
-    id: PI_SETUP_METHOD_ID,
-    name: 'Launch pi in the terminal',
-    description: 'Start pi in an interactive terminal to configure API keys or login',
+    id: GSD_SETUP_METHOD_ID,
+    name: 'Launch gsd in the terminal',
+    description: 'Start gsd in an interactive terminal to configure API keys or login',
 
     // Registry-required fields
     type: 'terminal',
@@ -33,7 +33,7 @@ export function getAuthMethods(opts?: { supportsTerminalAuthMeta?: boolean }): A
       ...(method._meta ?? {}),
       'terminal-auth': {
         ...launch,
-        label: 'Launch pi'
+        label: 'Launch gsd'
       }
     }
   }
@@ -54,6 +54,6 @@ function terminalAuthLaunchSpec(): { command: string; args: string[] } {
     }
   }
 
-  // Fallback: assume `pi-acp` is on PATH.
-  return { command: 'pi-acp', args: ['--terminal-login'] }
+  // Fallback: assume `gsd-acp` is on PATH.
+  return { command: 'gsd-acp', args: ['--terminal-login'] }
 }

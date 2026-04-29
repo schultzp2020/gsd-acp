@@ -1,25 +1,25 @@
 {
-  "name": "pi-acp",
+  "name": "gsd-acp",
   "version": "0.0.26",
-  "description": "ACP adapter for pi coding agent",
+  "description": "ACP adapter for gsd coding agent",
   "license": "MIT",
   "author": "Sergii Kozak <svkozak@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/svkozak/pi-acp.git"
+    "url": "https://github.com/svkozak/gsd-acp.git"
   },
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
   "bugs": {
-    "url": "https://github.com/svkozak/pi-acp/issues"
+    "url": "https://github.com/svkozak/gsd-acp/issues"
   },
-  "homepage": "https://github.com/svkozak/pi-acp#readme",
+  "homepage": "https://github.com/svkozak/gsd-acp#readme",
   "keywords": [
     "acp",
     "agent-client-protocol",
-    "pi-coding-agent",
+    "gsd",
     "adapter"
   ],
   "engines": {
@@ -28,7 +28,7 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "pi-acp": "dist/index.js"
+    "gsd-acp": "dist/index.js"
   },
   "files": [
     "dist"

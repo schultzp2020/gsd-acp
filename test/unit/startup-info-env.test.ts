@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { PiAcpAgent } from '../../src/acp/agent.js'
+import { GsdAcpAgent } from '../../src/acp/agent.js'
 import { FakeAgentSideConnection, asAgentConn } from '../helpers/fakes.js'
 
 class FakeSessions {
@@ -10,16 +10,18 @@ class FakeSessions {
   }
 }
 
-test('PiAcpAgent: quietStartup=true disables startup info generation/emission', async () => {
-  const prevAgentDir = process.env.PI_CODING_AGENT_DIR
+test('GsdAcpAgent: quietStartup=true disables startup info generation/emission', async () => {
+  const prevAgentDir = process.env.GSD_HOME
 
-  // Force quietStartup in pi settings by pointing PI_CODING_AGENT_DIR at a temp dir.
+  // Force quietStartup in gsd settings by pointing GSD_HOME at a temp dir.
   const { mkdtempSync, writeFileSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const { join } = await import('node:path')
-  const dir = mkdtempSync(join(tmpdir(), 'pi-acp-quietstartup-'))
+  const dir = mkdtempSync(join(tmpdir(), 'gsd-acp-quietstartup-'))
   writeFileSync(join(dir, 'settings.json'), JSON.stringify({ quietStartup: true }, null, 2), 'utf-8')
-  process.env.PI_CODING_AGENT_DIR = dir
+  writeFileSync(join(dir, 'auth.json'), '{"dummy":"x"}', 'utf-8')
+  writeFileSync(join(dir, 'models.json'), '{}', 'utf-8')
+  process.env.GSD_HOME = dir
 
   // Spy on setTimeout calls (agent schedules startup info + available commands)
   const realSetTimeout = globalThis.setTimeout
@@ -55,12 +57,12 @@ test('PiAcpAgent: quietStartup=true disables startup info generation/emission', 
       }
     }
 
-    const agent = new PiAcpAgent(asAgentConn(conn), {} as any)
+    const agent = new GsdAcpAgent(asAgentConn(conn), {} as any)
     ;(agent as any).sessions = new FakeSessions(session) as any
 
     const res = await agent.newSession({ cwd: process.cwd(), mcpServers: [] } as any)
 
-    const startupInfo = res?._meta?.piAcp?.startupInfo ?? null
+    const startupInfo = res?._meta?.gsdAcp?.startupInfo ?? null
 
     // When quietStartup=true the full prelude is suppressed. However, an update notice
     // (if one exists) is still surfaced because it's high-signal and actionable.
@@ -75,7 +77,7 @@ test('PiAcpAgent: quietStartup=true disables startup info generation/emission', 
     }
   } finally {
     ;(globalThis as any).setTimeout = realSetTimeout
-    if (prevAgentDir == null) delete process.env.PI_CODING_AGENT_DIR
-    else process.env.PI_CODING_AGENT_DIR = prevAgentDir
+    if (prevAgentDir == null) delete process.env.GSD_HOME
+    else process.env.GSD_HOME = prevAgentDir
   }
 })

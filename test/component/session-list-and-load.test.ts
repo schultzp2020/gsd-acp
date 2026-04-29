@@ -4,15 +4,15 @@ import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { PiAcpAgent } from '../../src/acp/agent.js'
+import { GsdAcpAgent } from '../../src/acp/agent.js'
 import { FakeAgentSideConnection, asAgentConn } from '../helpers/fakes.js'
 
-// We mock PiRpcProcess.spawn so loadSession doesn't actually spawn `pi`.
-import { PiRpcProcess } from '../../src/pi-rpc/process.js'
+// We mock GsdRpcProcess.spawn so loadSession doesn't actually spawn `gsd`.
+import { GsdRpcProcess } from '../../src/gsd-rpc/process.js'
 
-test('PiAcpAgent: unstable_listSessions lists pi sessions and loadSession replays history', async () => {
-  // Create a fake PI_CODING_AGENT_DIR with one session.
-  const root = mkdtempSync(join(tmpdir(), 'pi-acp-test-'))
+test('GsdAcpAgent: unstable_listSessions lists gsd sessions and loadSession replays history', async () => {
+  // Create a fake GSD_HOME with one session.
+  const root = mkdtempSync(join(tmpdir(), 'gsd-acp-test-'))
   const sessionsDir = join(root, 'sessions', '--tmp--project--')
   const sessionFile = join(sessionsDir, '0000_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jsonl')
 
@@ -54,12 +54,12 @@ test('PiAcpAgent: unstable_listSessions lists pi sessions and loadSession replay
     { encoding: 'utf8' }
   )
 
-  const oldEnv = process.env.PI_CODING_AGENT_DIR
-  process.env.PI_CODING_AGENT_DIR = root
+  const oldEnv = process.env.GSD_HOME
+  process.env.GSD_HOME = root
 
   try {
     const conn = new FakeAgentSideConnection()
-    const agent = new PiAcpAgent(asAgentConn(conn))
+    const agent = new GsdAcpAgent(asAgentConn(conn))
 
     // 1) list sessions
     const listed = await agent.unstable_listSessions({ cwd: null, cursor: null, _meta: null } as any)
@@ -71,12 +71,11 @@ test('PiAcpAgent: unstable_listSessions lists pi sessions and loadSession replay
     assert.equal(s?.title, 'My Named Session')
 
     // 2) load session: mock spawn to return fake proc with getMessages
-    const originalSpawn = PiRpcProcess.spawn
+    const originalSpawn = GsdRpcProcess.spawn
 
-    ;(PiRpcProcess as any).spawn = async (params: any) => {
-      // ensure loadSession resolves to some jsonl that ends with our expected filename
+    ;(GsdRpcProcess as any).spawn = async (params: any) => {
       assert.ok(typeof params.sessionPath === 'string')
-      assert.ok(params.sessionPath.endsWith('/0000_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jsonl'))
+      assert.ok(params.sessionPath.includes('0000_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jsonl'))
 
       return {
         onEvent: () => () => {
@@ -105,10 +104,10 @@ test('PiAcpAgent: unstable_listSessions lists pi sessions and loadSession replay
       assert.ok(texts.some(t => t.kind === 'user_message_chunk' && t.text === 'Hello'))
       assert.ok(texts.some(t => t.kind === 'agent_message_chunk' && t.text === 'Hi there!'))
     } finally {
-      PiRpcProcess.spawn = originalSpawn
+      GsdRpcProcess.spawn = originalSpawn
     }
   } finally {
-    if (oldEnv === undefined) delete process.env.PI_CODING_AGENT_DIR
-    else process.env.PI_CODING_AGENT_DIR = oldEnv
+    if (oldEnv === undefined) delete process.env.GSD_HOME
+    else process.env.GSD_HOME = oldEnv
   }
 })

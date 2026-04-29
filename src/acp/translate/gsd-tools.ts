@@ -1,7 +1,7 @@
 export function toolResultToText(result: unknown): string {
   if (!result) return ''
 
-  // pi tool results generally look like: { content: [{type:"text", text:"..."}], details: {...} }
+  // gsd tool results generally look like: { content: [{type:"text", text:"..."}], details: {...} }
   const content = (result as any).content
   if (Array.isArray(content)) {
     const texts = content
@@ -12,7 +12,7 @@ export function toolResultToText(result: unknown): string {
 
   const details = (result as any)?.details
 
-  // Some pi tools return a unified diff in `details.diff`.
+  // Some gsd tools return a unified diff in `details.diff`.
   const diff = details?.diff
   if (typeof diff === 'string' && diff.trim()) {
     return diff

@@ -22,20 +22,20 @@ import {
 import { getAuthMethods } from './auth.js'
 import { SessionManager } from './session.js'
 import { SessionStore } from './session-store.js'
-import { PiRpcProcess } from '../pi-rpc/process.js'
-import { listPiSessions, findPiSessionFile } from './pi-sessions.js'
-import { normalizePiAssistantText, normalizePiMessageText } from './translate/pi-messages.js'
-import { toolResultToText } from './translate/pi-tools.js'
-import { promptToPiMessage } from './translate/prompt.js'
+import { GsdRpcProcess } from '../gsd-rpc/process.js'
+import { listGsdSessions, findGsdSessionFile } from './gsd-sessions.js'
+import { normalizeGsdAssistantText, normalizeGsdMessageText } from './translate/gsd-messages.js'
+import { toolResultToText } from './translate/gsd-tools.js'
+import { promptToGsdMessage } from './translate/prompt.js'
 import { loadSlashCommands, parseCommandArgs, toAvailableCommands } from './slash-commands.js'
-import { getAgentDir, getEnableSkillCommands, getQuietStartup } from './pi-settings.js'
-import { toAvailableCommandsFromPiGetCommands } from './pi-commands.js'
+import { getAgentDir, getEnableSkillCommands, getQuietStartup } from './gsd-settings.js'
+import { toAvailableCommandsFromGsdGetCommands } from './gsd-commands.js'
 import { isAbsolute } from 'node:path'
 import { existsSync, readFileSync, realpathSync, readdirSync, statSync } from 'node:fs'
 import type { AvailableCommand } from '@agentclientprotocol/sdk'
 import { join, dirname, basename } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { hasAnyPiAuthConfigured } from '../pi-auth/status.js'
+import { hasAnyGsdAuthConfigured } from '../gsd-auth/status.js'
 
 type ThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
 
@@ -66,17 +66,17 @@ function builtinAvailableCommands(): AvailableCommand[] {
     },
     {
       name: 'steering',
-      description: 'Get/set pi steering message delivery mode (how queued steering messages are delivered)',
+      description: 'Get/set gsd steering message delivery mode (how queued steering messages are delivered)',
       input: { hint: '(no args to show) all | one-at-a-time' }
     },
     {
       name: 'follow-up',
-      description: 'Get/set pi follow-up message delivery mode (how queued follow-up messages are delivered)',
+      description: 'Get/set gsd follow-up message delivery mode (how queued follow-up messages are delivered)',
       input: { hint: '(no args to show) all | one-at-a-time' }
     },
     {
       name: 'changelog',
-      description: 'Show pi changelog'
+      description: 'Show gsd changelog'
     }
   ]
 }
@@ -98,7 +98,7 @@ import { fileURLToPath } from 'node:url'
 
 const pkg = readNearestPackageJson(import.meta.url)
 
-export class PiAcpAgent implements ACPAgent {
+export class GsdAcpAgent implements ACPAgent {
   private readonly conn: AgentSideConnection
   private readonly sessions = new SessionManager()
   private readonly store = new SessionStore()
@@ -123,8 +123,8 @@ export class PiAcpAgent implements ACPAgent {
     return {
       protocolVersion: requested === supportedVersion ? requested : supportedVersion,
       agentInfo: {
-        name: pkg.name ?? 'pi-acp',
-        title: 'pi ACP adapter',
+        name: pkg.name ?? 'gsd-acp',
+        title: 'gsd ACP adapter',
         version: pkg.version ?? '0.0.0'
       },
       // Zed currently uses ClientCapabilities._meta["terminal-auth"] to decide whether to show
@@ -138,7 +138,7 @@ export class PiAcpAgent implements ACPAgent {
         promptCapabilities: {
           image: true,
           audio: false,
-          embeddedContext: process.env.PI_ACP_ENABLE_EMBEDDED_CONTEXT === 'true'
+          embeddedContext: process.env.GSD_ACP_ENABLE_EMBEDDED_CONTEXT === 'true'
         },
         sessionCapabilities: {
           // **UNSTABLE** ACP capability used by Zed's codex-acp adapter.
@@ -156,10 +156,10 @@ export class PiAcpAgent implements ACPAgent {
 
     this.lastSessionCwd = params.cwd
 
-    // IMPORTANT: pi exits immediately in --mode rpc if no model is available (no auth configured).
-    // So we must detect that situation without spawning pi, and return AUTH_REQUIRED so clients
+    // IMPORTANT: gsd exits immediately in --mode rpc if no model is available (no auth configured).
+    // So we must detect that situation without spawning gsd, and return AUTH_REQUIRED so clients
     // (e.g. Zed) can show the Authenticate banner and launch a terminal login.
-    if (!hasAnyPiAuthConfigured()) {
+    if (!hasAnyGsdAuthConfigured()) {
       throw RequestError.authRequired(
         { authMethods: getAuthMethods() },
         'Configure an API key or log in with an OAuth provider.'
@@ -169,13 +169,13 @@ export class PiAcpAgent implements ACPAgent {
     const fileCommands = loadSlashCommands(params.cwd)
     const enableSkillCommands = getEnableSkillCommands(params.cwd)
 
-    // Pi doesn't support mcpServers, but we accept and store.
+    // Gsd doesn't support mcpServers, but we accept and store.
     const session = await this.sessions.create({
       cwd: params.cwd,
       mcpServers: params.mcpServers,
       conn: this.conn,
       fileCommands,
-      piCommand: process.env.PI_ACP_PI_COMMAND
+      gsdCommand: process.env.GSD_ACP_GSD_COMMAND
     })
 
     // Fetch state + models once (parallel) to reduce startup latency.
@@ -201,7 +201,7 @@ export class PiAcpAgent implements ACPAgent {
         })
     ])
 
-    // Proactive auth gate: if pi has no models available, it's effectively unauthenticated.
+    // Proactive auth gate: if gsd has no models available, it's effectively unauthenticated.
     const rawModelsCount = Array.isArray(availableModels?.models) ? availableModels.models.length : 0
 
     if (rawModelsCount === 0) {
@@ -237,7 +237,7 @@ export class PiAcpAgent implements ACPAgent {
     if (preludeText)
       session.setStartupInfo(preludeText)
 
-      // Policy: within a single ACP connection (one client window), keep only one live pi subprocess.
+      // Policy: within a single ACP connection (one client window), keep only one live gsd subprocess.
       // This avoids leaking subprocesses when clients start new sessions but don't explicitly close old ones.
       // It does NOT affect other client windows because they run in separate agent processes.
       //
@@ -249,7 +249,7 @@ export class PiAcpAgent implements ACPAgent {
       models,
       modes: thinking,
       _meta: {
-        piAcp: {
+        gsdAcp: {
           startupInfo: preludeText || null
         }
       }
@@ -265,8 +265,8 @@ export class PiAcpAgent implements ACPAgent {
     setTimeout(() => {
       void (async () => {
         try {
-          const pi = (await session.proc.getCommands()) as any
-          const { commands } = toAvailableCommandsFromPiGetCommands(pi, {
+          const cmdResult = (await session.proc.getCommands()) as any
+          const { commands } = toAvailableCommandsFromGsdGetCommands(cmdResult, {
             enableSkillCommands,
             includeExtensionCommands: false
           })
@@ -305,7 +305,7 @@ export class PiAcpAgent implements ACPAgent {
   async prompt(params: PromptRequest): Promise<PromptResponse> {
     const session = this.sessions.get(params.sessionId)
 
-    const { message, images } = promptToPiMessage(params.prompt)
+    const { message, images } = promptToGsdMessage(params.prompt)
 
     // Built-in ACP slash command handling (headless-friendly subset).
     // Note: file-based slash commands are expanded inside session.prompt().
@@ -395,7 +395,7 @@ export class PiAcpAgent implements ACPAgent {
         } catch (e: any) {
           const msg = String(e?.message ?? e)
           const hint = /set_session_name/i.test(msg)
-            ? ' This requires a newer pi version that supports `set_session_name` in RPC mode.'
+            ? ' This requires a newer gsd version that supports `set_session_name` in RPC mode.'
             : ''
 
           await this.conn.sessionUpdate({
@@ -523,19 +523,18 @@ export class PiAcpAgent implements ACPAgent {
       }
 
       if (cmd === 'changelog') {
-        // Read pi's installed CHANGELOG.md. Adapter-side, no model call.
+        // Read gsd's installed CHANGELOG.md. Adapter-side, no model call.
         const findChangelog = (): string | null => {
-          // 1) Locate the installed pi package by resolving the `pi` executable.
-          // On Node installs, `pi` typically resolves to .../@mariozechner/pi-coding-agent/dist/cli.js
+          // 1) Locate the installed gsd package by resolving the `gsd` executable.
           try {
             const whichCmd = process.platform === 'win32' ? 'where' : 'which'
-            const which = spawnSync(whichCmd, ['pi'], { encoding: 'utf-8' })
-            const piPath = String(which.stdout ?? '')
+            const which = spawnSync(whichCmd, ['gsd'], { encoding: 'utf-8' })
+            const gsdPath = String(which.stdout ?? '')
               .split(/\r?\n/)[0]
               ?.trim()
 
-            if (piPath) {
-              const resolved = realpathSync(piPath)
+            if (gsdPath) {
+              const resolved = realpathSync(gsdPath)
               const pkgRoot = dirname(dirname(resolved))
               const p = join(pkgRoot, 'CHANGELOG.md')
               if (existsSync(p)) return p
@@ -549,7 +548,7 @@ export class PiAcpAgent implements ACPAgent {
             const npmRoot = spawnSync('npm', ['root', '-g'], { encoding: 'utf-8' })
             const root = String(npmRoot.stdout ?? '').trim()
             if (root) {
-              const p = join(root, '@mariozechner', 'pi-coding-agent', 'CHANGELOG.md')
+              const p = join(root, 'gsd', 'CHANGELOG.md')
               if (existsSync(p)) return p
             }
           } catch {
@@ -565,7 +564,7 @@ export class PiAcpAgent implements ACPAgent {
             sessionId: session.sessionId,
             update: {
               sessionUpdate: 'agent_message_chunk',
-              content: { type: 'text', text: "Changelog not found (couldn't locate pi installation)." }
+              content: { type: 'text', text: "Changelog not found (couldn't locate gsd installation)." }
             }
           })
           return { stopReason: 'end_turn' }
@@ -602,8 +601,8 @@ export class PiAcpAgent implements ACPAgent {
 
       if (cmd === 'export') {
         // For now we always export into the session cwd and do not accept a user-provided path.
-        // IMPORTANT: pi's export_html reads the session JSONL file. If it doesn't exist yet
-        // (no messages) or is empty, pi throws and RPC mode emits an uncorrelated parse error
+        // IMPORTANT: gsd's export_html reads the session JSONL file. If it doesn't exist yet
+        // (no messages) or is empty, gsd throws and RPC mode emits an uncorrelated parse error
         // (no id), which would otherwise hang our request. So we guard here.
         const state = (await session.proc.getState()) as any
         const sessionFile = typeof state?.sessionFile === 'string' ? state.sessionFile : null
@@ -653,7 +652,7 @@ export class PiAcpAgent implements ACPAgent {
         }
 
         const safeSessionId = session.sessionId.replace(/[^a-zA-Z0-9_-]/g, '_')
-        const outputPath = join(session.cwd, `pi-session-${safeSessionId}.html`)
+        const outputPath = join(session.cwd, `gsd-session-${safeSessionId}.html`)
 
         let resultPath = ''
         try {
@@ -680,7 +679,7 @@ export class PiAcpAgent implements ACPAgent {
               sessionUpdate: 'agent_message_chunk',
               content: {
                 type: 'text',
-                text: 'Export failed: no output path returned by pi.'
+                text: 'Export failed: no output path returned by gsd.'
               }
             }
           })
@@ -708,7 +707,7 @@ export class PiAcpAgent implements ACPAgent {
             sessionUpdate: 'agent_message_chunk',
             content: {
               type: 'resource_link',
-              name: `pi-session-${safeSessionId}.html`,
+              name: `gsd-session-${safeSessionId}.html`,
               uri,
               mimeType: 'text/html',
               title: 'Session exported'
@@ -751,7 +750,7 @@ export class PiAcpAgent implements ACPAgent {
 
     const result = await session.prompt(message, images)
 
-    // ACP StopReason does not include "error"; if pi fails we map to end_turn for now,
+    // ACP StopReason does not include "error"; if gsd fails we map to end_turn for now,
     // unless we know this was a cancellation.
     const stopReason: StopReason =
       result === 'error' ? (session.wasCancelRequested() ? 'cancelled' : 'end_turn') : result
@@ -767,8 +766,8 @@ export class PiAcpAgent implements ACPAgent {
   async unstable_listSessions(params: ListSessionsRequest): Promise<ListSessionsResponse> {
     // ACP: filter by cwd if provided.
     // Zed currently sends `{}` (no cwd), so we default to the last session cwd to
-    // emulate pi's `/resume` picker (project-scoped).
-    const all = listPiSessions()
+    // emulate gsd's `/resume` picker (project-scoped).
+    const all = listGsdSessions()
 
     const effectiveCwd = (params as any).cwd ?? this.lastSessionCwd
     const filtered = effectiveCwd ? all.filter(s => s.cwd === effectiveCwd) : all
@@ -799,31 +798,31 @@ export class PiAcpAgent implements ACPAgent {
     }
 
     // If the client is re-loading a session that is already active, tear down the existing
-    // pi subprocess so we can start fresh and re-advertise commands reliably.
+    // gsd subprocess so we can start fresh and re-advertise commands reliably.
     // (Some clients may call session/load when restoring from history.)
     this.sessions.close(params.sessionId)
 
     this.lastSessionCwd = params.cwd
 
     // MVP: ignore mcpServers.
-    // Prefer ACP-created mapping first (fast path), otherwise scan pi sessions dir.
+    // Prefer ACP-created mapping first (fast path), otherwise scan gsd sessions dir.
     const stored = this.store.get(params.sessionId)
-    const sessionFile = stored?.sessionFile ?? findPiSessionFile(params.sessionId)
+    const sessionFile = stored?.sessionFile ?? findGsdSessionFile(params.sessionId)
 
     if (!sessionFile) {
       throw RequestError.invalidParams(`Unknown sessionId: ${params.sessionId}`)
     }
 
-    // Spawn pi and point it directly at the session file.
-    let proc: PiRpcProcess
+    // Spawn gsd and point it directly at the session file.
+    let proc: GsdRpcProcess
     try {
-      proc = await PiRpcProcess.spawn({
+      proc = await GsdRpcProcess.spawn({
         cwd: params.cwd,
         sessionPath: sessionFile,
-        piCommand: process.env.PI_ACP_PI_COMMAND
+        gsdCommand: process.env.GSD_ACP_GSD_COMMAND
       })
     } catch (e: any) {
-      if (e?.name === 'PiRpcSpawnError') {
+      if (e?.name === 'GsdRpcSpawnError') {
         throw RequestError.internalError({ code: e?.code }, String(e?.message ?? e))
       }
       throw e
@@ -840,7 +839,7 @@ export class PiAcpAgent implements ACPAgent {
       fileCommands
     })
 
-    // Policy: within a single ACP connection (one Zed window), keep only one live pi subprocess.
+    // Policy: within a single ACP connection (one Zed window), keep only one live gsd subprocess.
     // (Tests sometimes stub out `this.sessions`, so guard the call.)
     ;(this.sessions as any).closeAllExcept?.(session.sessionId)
 
@@ -859,7 +858,7 @@ export class PiAcpAgent implements ACPAgent {
       const role = String(m?.role ?? '')
 
       if (role === 'user') {
-        const text = normalizePiMessageText(m?.content)
+        const text = normalizeGsdMessageText(m?.content)
         if (text) {
           await this.conn.sessionUpdate({
             sessionId: session.sessionId,
@@ -872,7 +871,7 @@ export class PiAcpAgent implements ACPAgent {
       }
 
       if (role === 'assistant') {
-        const text = normalizePiAssistantText(m?.content)
+        const text = normalizeGsdAssistantText(m?.content)
         if (text) {
           await this.conn.sessionUpdate({
             sessionId: session.sessionId,
@@ -924,7 +923,7 @@ export class PiAcpAgent implements ACPAgent {
       models,
       modes: thinking,
       _meta: {
-        piAcp: {
+        gsdAcp: {
           startupInfo: null
         }
       }
@@ -934,8 +933,8 @@ export class PiAcpAgent implements ACPAgent {
     setTimeout(() => {
       void (async () => {
         try {
-          const pi = (await proc.getCommands()) as any
-          const { commands } = toAvailableCommandsFromPiGetCommands(pi, {
+          const cmdResult = (await proc.getCommands()) as any
+          const { commands } = toAvailableCommandsFromGsdGetCommands(cmdResult, {
             enableSkillCommands,
             includeExtensionCommands: false
           })
@@ -1027,7 +1026,7 @@ function isThinkingLevel(x: string): x is ThinkingLevel {
 }
 
 async function getThinkingState(
-  proc: PiRpcProcess,
+  proc: GsdRpcProcess,
   pre?: { state?: any | null }
 ): Promise<{
   availableModes: Array<{
@@ -1037,7 +1036,7 @@ async function getThinkingState(
   }>
   currentModeId: string
 }> {
-  // Ask pi for current thinking level.
+  // Ask gsd for current thinking level.
   let current: ThinkingLevel = 'medium'
 
   const state =
@@ -1066,13 +1065,13 @@ async function getThinkingState(
 }
 
 async function getModelState(
-  proc: PiRpcProcess,
+  proc: GsdRpcProcess,
   pre?: { state?: any | null; availableModels?: any | null }
 ): Promise<{
   availableModels: ModelInfo[]
   currentModelId: string
 } | null> {
-  // Ask pi for available models.
+  // Ask gsd for available models.
   let availableModels: ModelInfo[] = []
 
   const data =
@@ -1101,7 +1100,7 @@ async function getModelState(
     })
     .filter(Boolean) as ModelInfo[]
 
-  // Ask pi what model is currently active.
+  // Ask gsd what model is currently active.
   let currentModelId: string | null = null
 
   const state =
@@ -1159,7 +1158,7 @@ function buildUpdateNotice(): string | null {
   // Best-effort update check against npm registry.
   // Important: keep it fast to not slow down session/new.
   try {
-    const piVersion = spawnSync('pi', ['--version'], { encoding: 'utf-8' })
+    const piVersion = spawnSync('gsd', ['--version'], { encoding: 'utf-8' })
     const installed = (String(piVersion.stdout ?? '').trim() || String(piVersion.stderr ?? '').trim()).replace(
       /^v/i,
       ''
@@ -1167,7 +1166,7 @@ function buildUpdateNotice(): string | null {
 
     if (!installed || !isSemver(installed)) return null
 
-    const latestRes = spawnSync('npm', ['view', '@mariozechner/pi-coding-agent', 'version'], {
+    const latestRes = spawnSync('npm', ['view', 'gsd', 'version'], {
       encoding: 'utf-8',
       timeout: 800
     })
@@ -1178,7 +1177,7 @@ function buildUpdateNotice(): string | null {
     if (!latest || !isSemver(latest)) return null
     if (compareSemver(latest, installed) <= 0) return null
 
-    return `New version available: v${latest} (installed v${installed}). Run: \`npm i -g @mariozechner/pi-coding-agent\``
+    return `New version available: v${latest} (installed v${installed}). Run: \`npm i -g gsd\``
   } catch {
     return null
   }
@@ -1193,15 +1192,15 @@ function buildStartupInfo(opts: {
 
   const md: string[] = []
 
-  // pi version header
+  // gsd version header
   try {
-    const piVersion = spawnSync('pi', ['--version'], { encoding: 'utf-8' })
+    const piVersion = spawnSync('gsd', ['--version'], { encoding: 'utf-8' })
     const installed = (String(piVersion.stdout ?? '').trim() || String(piVersion.stderr ?? '').trim()).replace(
       /^v/i,
       ''
     )
     if (installed) {
-      md.push(`pi v${installed}`)
+      md.push(`gsd v${installed}`)
       md.push('---')
       md.push('')
     }
@@ -1276,23 +1275,23 @@ function buildStartupInfo(opts: {
   }
 
   // Global skills
-  // Use getAgentDir() so this respects PI_CODING_AGENT_DIR overrides.
+  // Use getAgentDir() so this respects GSD_HOME overrides.
   const globalSkillsDir = join(getAgentDir(), 'skills')
   pushSkillFromRoot(globalSkillsDir)
 
-  // Also support ~/.agents/skills (pi skill discovery)
+  // Also support ~/.agents/skills (gsd skill discovery)
   const legacyAgentsSkillsDir = join(process.env.HOME ?? '', '.agents', 'skills')
   pushSkillFromRoot(legacyAgentsSkillsDir)
 
-  // Project skills (.pi/skills)
-  const projectSkillsDir = join(opts.cwd, '.pi', 'skills')
+  // Project skills (.gsd/skills)
+  const projectSkillsDir = join(opts.cwd, '.gsd', 'skills')
   pushSkillFromRoot(projectSkillsDir)
 
   addSection('Skills', skillsItems)
 
   // Prompts
   const promptsItems: string[] = []
-  const promptsDir = join(process.env.HOME ?? '', '.pi', 'agent', 'prompts')
+  const promptsDir = join(process.env.HOME ?? '', '.gsd', 'agent', 'prompts')
   try {
     const prompts = readdirSync(promptsDir).filter(f => f.endsWith('.md'))
     for (const f of prompts) promptsItems.push(`/${basename(f, '.md')}`)
@@ -1303,7 +1302,7 @@ function buildStartupInfo(opts: {
 
   // Extensions
   const extItems: string[] = []
-  const extDir = join(process.env.HOME ?? '', '.pi', 'agent', 'extensions')
+  const extDir = join(process.env.HOME ?? '', '.gsd', 'agent', 'extensions')
   try {
     const exts = readdirSync(extDir).filter(f => f.endsWith('.ts') || f.endsWith('.js'))
     for (const f of exts) extItems.push(join(extDir, f))
@@ -1311,9 +1310,9 @@ function buildStartupInfo(opts: {
     // ignore
   }
 
-  // Also show npm packages from pi settings (best-effort)
+  // Also show npm packages from gsd settings (best-effort)
   try {
-    const settingsPath = join(process.env.HOME ?? '', '.pi', 'agent', 'settings.json')
+    const settingsPath = join(process.env.HOME ?? '', '.gsd', 'agent', 'settings.json')
     const settings = JSON.parse(readFileSync(settingsPath, 'utf-8')) as any
     const pkgs: string[] = Array.isArray(settings?.packages) ? settings.packages : []
     for (const pkg of pkgs) {
@@ -1360,5 +1359,5 @@ function readNearestPackageJson(metaUrl: string): {
   } catch {
     // ignore
   }
-  return { name: 'pi-acp', version: '0.0.0' }
+  return { name: 'gsd-acp', version: '0.0.0' }
 }

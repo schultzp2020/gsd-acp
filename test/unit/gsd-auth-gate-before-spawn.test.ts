@@ -3,18 +3,18 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { PiAcpAgent } from '../../src/acp/agent.js'
+import { GsdAcpAgent } from '../../src/acp/agent.js'
 import { FakeAgentSideConnection, asAgentConn } from '../helpers/fakes.js'
 
 class FakeSessions {
   async create() {
-    throw new Error('pi should not be spawned when no auth is configured')
+    throw new Error('gsd should not be spawned when no auth is configured')
   }
 }
 
-test('PiAcpAgent: newSession returns AUTH_REQUIRED without spawning pi when no auth configured', async () => {
-  const prev = process.env.PI_CODING_AGENT_DIR
-  const dir = mkdtempSync(join(tmpdir(), 'pi-acp-auth-'))
+test('GsdAcpAgent: newSession returns AUTH_REQUIRED without spawning gsd when no auth configured', async () => {
+  const prev = process.env.GSD_HOME
+  const dir = mkdtempSync(join(tmpdir(), 'gsd-acp-auth-'))
 
   // Create empty auth/models files in a temp agent dir.
   writeFileSync(join(dir, 'auth.json'), '{}', 'utf-8')
@@ -28,11 +28,11 @@ test('PiAcpAgent: newSession returns AUTH_REQUIRED without spawning pi when no a
     delete process.env[k]
   }
 
-  process.env.PI_CODING_AGENT_DIR = dir
+  process.env.GSD_HOME = dir
 
   try {
     const conn = new FakeAgentSideConnection()
-    const agent = new PiAcpAgent(asAgentConn(conn), {} as any)
+    const agent = new GsdAcpAgent(asAgentConn(conn), {} as any)
     ;(agent as any).sessions = new FakeSessions() as any
 
     await assert.rejects(
@@ -40,8 +40,8 @@ test('PiAcpAgent: newSession returns AUTH_REQUIRED without spawning pi when no a
       (e: any) => e?.code === -32000
     )
   } finally {
-    if (prev == null) delete process.env.PI_CODING_AGENT_DIR
-    else process.env.PI_CODING_AGENT_DIR = prev
+    if (prev == null) delete process.env.GSD_HOME
+    else process.env.GSD_HOME = prev
 
     for (const k of keys) {
       if (savedEnv[k] == null) delete process.env[k]

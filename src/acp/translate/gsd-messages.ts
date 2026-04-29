@@ -1,4 +1,4 @@
-export function normalizePiMessageText(content: unknown): string {
+export function normalizeGsdMessageText(content: unknown): string {
   if (typeof content === 'string') return content
   if (!Array.isArray(content)) return ''
   return content
@@ -7,7 +7,7 @@ export function normalizePiMessageText(content: unknown): string {
     .join('')
 }
 
-export function normalizePiAssistantText(content: unknown): string {
+export function normalizeGsdAssistantText(content: unknown): string {
   // Assistant content is typically an array of blocks; only replay text blocks for MVP.
   if (!Array.isArray(content)) return ''
   return content

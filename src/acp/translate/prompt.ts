@@ -1,17 +1,17 @@
 import type { ContentBlock } from '@agentclientprotocol/sdk'
 
-export type PiImage = {
+export type GsdImage = {
   type: 'image'
   mimeType: string
   data: string
 }
 
-export function promptToPiMessage(blocks: ContentBlock[]): {
+export function promptToGsdMessage(blocks: ContentBlock[]): {
   message: string
-  images: PiImage[]
+  images: GsdImage[]
 } {
   let message = ''
-  const images: PiImage[] = []
+  const images: GsdImage[] = []
 
   for (const b of blocks) {
     switch (b.type) {
@@ -25,7 +25,7 @@ export function promptToPiMessage(blocks: ContentBlock[]): {
         break
 
       case 'image': {
-        // pi expects base64 image bytes in `data` without a data-url prefix.
+        // gsd expects base64 image bytes in `data` without a data-url prefix.
         images.push({
           type: 'image',
           mimeType: b.mimeType,
@@ -55,9 +55,9 @@ export function promptToPiMessage(blocks: ContentBlock[]): {
       }
 
       case 'audio': {
-        // Not supported by pi. Provide a marker so we don't silently drop context.
+        // Not supported by gsd. Provide a marker so we don't silently drop context.
         const bytes = Buffer.byteLength(b.data, 'base64')
-        message += `\n[Audio] (${b.mimeType}, ${bytes} bytes) not supported by pi-acp`
+        message += `\n[Audio] (${b.mimeType}, ${bytes} bytes) not supported by gsd-acp`
         break
       }
 

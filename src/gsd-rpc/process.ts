@@ -1,14 +1,14 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import * as readline from 'node:readline'
-import { getPiCommand, shouldUseShellForPiCommand } from './command.js'
+import { getGsdCommand, shouldUseShellForGsdCommand } from './command.js'
 
-export class PiRpcSpawnError extends Error {
+export class GsdRpcSpawnError extends Error {
   /** Underlying spawn error code, e.g. ENOENT, EACCES */
   code?: string
 
   constructor(message: string, opts?: { code?: string; cause?: unknown }) {
     super(message)
-    this.name = 'PiRpcSpawnError'
+    this.name = 'GsdRpcSpawnError'
     this.code = opts?.code
     ;(this as any).cause = opts?.cause
   }
@@ -27,7 +27,7 @@ function stripAnsi(s: string): string {
   return s.replace(ANSI_ESCAPE_REGEX, '')
 }
 
-type PiRpcCommand =
+type GsdRpcCommand =
   | { type: 'prompt'; id?: string; message: string; images?: unknown[] }
   | { type: 'abort'; id?: string }
   | { type: 'get_state'; id?: string }
@@ -52,7 +52,7 @@ type PiRpcCommand =
   // Commands
   | { type: 'get_commands'; id?: string }
 
-type PiRpcResponse = {
+type GsdRpcResponse = {
   type: 'response'
   id?: string
   command: string
@@ -61,20 +61,20 @@ type PiRpcResponse = {
   error?: string
 }
 
-export type PiRpcEvent = Record<string, unknown>
+export type GsdRpcEvent = Record<string, unknown>
 
 type SpawnParams = {
   cwd: string
-  /** Optional override for `pi` executable name/path */
-  piCommand?: string
-  /** If set, pi will persist the session to this exact file (via `--session <path>`). */
+  /** Optional override for `gsd` executable name/path */
+  gsdCommand?: string
+  /** If set, gsd will persist the session to this exact file (via `--session <path>`). */
   sessionPath?: string
 }
 
-export class PiRpcProcess {
+export class GsdRpcProcess {
   private readonly child: ChildProcessWithoutNullStreams
-  private readonly pending = new Map<string, { resolve: (v: PiRpcResponse) => void; reject: (e: unknown) => void }>()
-  private eventHandlers: Array<(ev: PiRpcEvent) => void> = []
+  private readonly pending = new Map<string, { resolve: (v: GsdRpcResponse) => void; reject: (e: unknown) => void }>()
+  private eventHandlers: Array<(ev: GsdRpcEvent) => void> = []
   private readonly preludeLines: string[] = []
 
   private constructor(child: ChildProcessWithoutNullStreams) {
@@ -87,7 +87,7 @@ export class PiRpcProcess {
       try {
         msg = JSON.parse(line)
       } catch {
-        // pi may emit a human-readable prelude on stdout before NDJSON starts.
+        // gsd may emit a human-readable prelude on stdout before NDJSON starts.
         // Capture it so the ACP adapter can surface it on session start.
         const cleaned = stripAnsi(String(line)).trimEnd()
         if (cleaned) this.preludeLines.push(cleaned)
@@ -100,17 +100,17 @@ export class PiRpcProcess {
           const pending = this.pending.get(id)
           if (pending) {
             this.pending.delete(id)
-            pending.resolve(msg as PiRpcResponse)
+            pending.resolve(msg as GsdRpcResponse)
             return
           }
         }
       }
 
-      for (const h of this.eventHandlers) h(msg as PiRpcEvent)
+      for (const h of this.eventHandlers) h(msg as GsdRpcEvent)
     })
 
     child.on('exit', (code, signal) => {
-      const err = new Error(`pi process exited (code=${code}, signal=${signal})`)
+      const err = new Error(`gsd process exited (code=${code}, signal=${signal})`)
       for (const [, p] of this.pending) p.reject(err)
       this.pending.clear()
     })
@@ -121,9 +121,9 @@ export class PiRpcProcess {
     })
   }
 
-  static async spawn(params: SpawnParams): Promise<PiRpcProcess> {
-    // On Windows, npm commonly creates pi.cmd / pi.bat launcher scripts.
-    const cmd = getPiCommand(params.piCommand)
+  static async spawn(params: SpawnParams): Promise<GsdRpcProcess> {
+    // On Windows, npm commonly creates gsd.cmd / gsd.bat launcher scripts.
+    const cmd = getGsdCommand(params.gsdCommand)
 
     // Speed/robustness for ACP:
     // - themes are irrelevant in rpc mode and can be noisy/slow to load.
@@ -136,10 +136,10 @@ export class PiRpcProcess {
       cwd: params.cwd,
       stdio: 'pipe',
       env: process.env,
-      shell: shouldUseShellForPiCommand(cmd)
+      shell: shouldUseShellForGsdCommand(cmd)
     })
 
-    // Ensure spawn failures (e.g. ENOENT when pi isn't installed) are surfaced as a
+    // Ensure spawn failures (e.g. ENOENT when gsd isn't installed) are surfaced as a
     // deterministic error instead of later EPIPE/internal-error noise.
     try {
       await new Promise<void>((resolve, reject) => {
@@ -162,27 +162,27 @@ export class PiRpcProcess {
     } catch (e: any) {
       const code = typeof e?.code === 'string' ? e.code : undefined
       if (code === 'ENOENT') {
-        throw new PiRpcSpawnError(
-          `Could not start pi: executable not found (command: ${cmd}). Pi needs to be installed before it can run in ACP clients. Install it via \`npm install -g @mariozechner/pi-coding-agent\` or ensure \`pi\` is on your PATH. Then try again.`,
+        throw new GsdRpcSpawnError(
+          `Could not start gsd: executable not found (command: ${cmd}). gsd needs to be installed before it can run in ACP clients. Install it via \`npm install -g gsd\` or ensure \`gsd\` is on your PATH. Then try again.`,
           { code, cause: e }
         )
       }
 
       if (code === 'EACCES') {
-        throw new PiRpcSpawnError(`Could not start pi: permission denied (command: ${cmd}).`, { code, cause: e })
+        throw new GsdRpcSpawnError(`Could not start gsd: permission denied (command: ${cmd}).`, { code, cause: e })
       }
 
-      throw new PiRpcSpawnError(`Could not start pi (command: ${cmd}).`, { code, cause: e })
+      throw new GsdRpcSpawnError(`Could not start gsd (command: ${cmd}).`, { code, cause: e })
     }
 
     child.stderr.on('data', () => {
       // leave stderr untouched; ACP clients may capture it.
     })
 
-    const proc = new PiRpcProcess(child)
+    const proc = new GsdRpcProcess(child)
 
     // Best-effort handshake.
-    // Important: pi may emit a get_state response pointing at a sessionFile in a directory
+    // Important: gsd may emit a get_state response pointing at a sessionFile in a directory
     // that is created lazily. Create the parent dir up-front to avoid later parse errors
     // when we call commands like export_html.
     try {
@@ -200,7 +200,7 @@ export class PiRpcProcess {
     return proc
   }
 
-  onEvent(handler: (ev: PiRpcEvent) => void): () => void {
+  onEvent(handler: (ev: GsdRpcEvent) => void): () => void {
     this.eventHandlers.push(handler)
     return () => {
       this.eventHandlers = this.eventHandlers.filter(h => h !== handler)
@@ -227,100 +227,100 @@ export class PiRpcProcess {
 
   async prompt(message: string, images: unknown[] = []): Promise<void> {
     const res = await this.request({ type: 'prompt', message, images })
-    if (!res.success) throw new Error(`pi prompt failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd prompt failed: ${res.error ?? JSON.stringify(res.data)}`)
   }
 
   async abort(): Promise<void> {
     const res = await this.request({ type: 'abort' })
-    if (!res.success) throw new Error(`pi abort failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd abort failed: ${res.error ?? JSON.stringify(res.data)}`)
   }
 
   async getState(): Promise<unknown> {
     const res = await this.request({ type: 'get_state' })
-    if (!res.success) throw new Error(`pi get_state failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd get_state failed: ${res.error ?? JSON.stringify(res.data)}`)
     return res.data
   }
 
   async getAvailableModels(): Promise<unknown> {
     const res = await this.request({ type: 'get_available_models' })
-    if (!res.success) throw new Error(`pi get_available_models failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd get_available_models failed: ${res.error ?? JSON.stringify(res.data)}`)
     return res.data
   }
 
   async setModel(provider: string, modelId: string): Promise<unknown> {
     const res = await this.request({ type: 'set_model', provider, modelId })
-    if (!res.success) throw new Error(`pi set_model failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd set_model failed: ${res.error ?? JSON.stringify(res.data)}`)
     return res.data
   }
 
   async setThinkingLevel(level: 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'): Promise<void> {
     const res = await this.request({ type: 'set_thinking_level', level })
-    if (!res.success) throw new Error(`pi set_thinking_level failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd set_thinking_level failed: ${res.error ?? JSON.stringify(res.data)}`)
   }
 
   async setFollowUpMode(mode: 'all' | 'one-at-a-time'): Promise<void> {
     const res = await this.request({ type: 'set_follow_up_mode', mode })
-    if (!res.success) throw new Error(`pi set_follow_up_mode failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd set_follow_up_mode failed: ${res.error ?? JSON.stringify(res.data)}`)
   }
 
   async setSteeringMode(mode: 'all' | 'one-at-a-time'): Promise<void> {
     const res = await this.request({ type: 'set_steering_mode', mode })
-    if (!res.success) throw new Error(`pi set_steering_mode failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd set_steering_mode failed: ${res.error ?? JSON.stringify(res.data)}`)
   }
 
   async compact(customInstructions?: string): Promise<unknown> {
     const res = await this.request({ type: 'compact', customInstructions })
-    if (!res.success) throw new Error(`pi compact failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd compact failed: ${res.error ?? JSON.stringify(res.data)}`)
     return res.data
   }
 
   async setAutoCompaction(enabled: boolean): Promise<void> {
     const res = await this.request({ type: 'set_auto_compaction', enabled })
-    if (!res.success) throw new Error(`pi set_auto_compaction failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd set_auto_compaction failed: ${res.error ?? JSON.stringify(res.data)}`)
   }
 
   async getSessionStats(): Promise<unknown> {
     const res = await this.request({ type: 'get_session_stats' })
-    if (!res.success) throw new Error(`pi get_session_stats failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd get_session_stats failed: ${res.error ?? JSON.stringify(res.data)}`)
     return res.data
   }
 
   async setSessionName(name: string): Promise<void> {
     const res = await this.request({ type: 'set_session_name', name })
-    if (!res.success) throw new Error(`pi set_session_name failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd set_session_name failed: ${res.error ?? JSON.stringify(res.data)}`)
   }
 
   async exportHtml(outputPath?: string): Promise<{ path: string }> {
     const res = await this.request({ type: 'export_html', outputPath })
-    if (!res.success) throw new Error(`pi export_html failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd export_html failed: ${res.error ?? JSON.stringify(res.data)}`)
     const data: any = res.data
     return { path: String(data?.path ?? '') }
   }
 
   async switchSession(sessionPath: string): Promise<void> {
     const res = await this.request({ type: 'switch_session', sessionPath })
-    if (!res.success) throw new Error(`pi switch_session failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd switch_session failed: ${res.error ?? JSON.stringify(res.data)}`)
   }
 
   async getMessages(): Promise<unknown> {
     const res = await this.request({ type: 'get_messages' })
-    if (!res.success) throw new Error(`pi get_messages failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd get_messages failed: ${res.error ?? JSON.stringify(res.data)}`)
     return res.data
   }
 
   async getCommands(): Promise<unknown> {
     const res = await this.request({ type: 'get_commands' })
-    if (!res.success) throw new Error(`pi get_commands failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd get_commands failed: ${res.error ?? JSON.stringify(res.data)}`)
     return res.data
   }
 
-  private request(cmd: PiRpcCommand): Promise<PiRpcResponse> {
+  private request(cmd: GsdRpcCommand): Promise<GsdRpcResponse> {
     const id = crypto.randomUUID()
     const withId = { ...cmd, id }
 
     const line = JSON.stringify(withId) + '\n'
 
-    return new Promise<PiRpcResponse>((resolve, reject) => {
+    return new Promise<GsdRpcResponse>((resolve, reject) => {
       this.pending.set(id, { resolve, reject })
 
       try {

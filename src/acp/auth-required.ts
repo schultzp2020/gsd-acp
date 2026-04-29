@@ -2,7 +2,7 @@ import { RequestError } from '@agentclientprotocol/sdk'
 import { getAuthMethods } from './auth.js'
 
 /**
- * Best-effort detection of missing credentials / not-configured errors from pi/providers.
+ * Best-effort detection of missing credentials / not-configured errors from gsd/providers.
  *
  * We can't do a full provider-specific check here, so we look for common substrings.
  */

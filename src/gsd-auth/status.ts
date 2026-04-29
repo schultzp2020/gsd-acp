@@ -13,21 +13,19 @@ function safeReadJson(path: string): any | null {
   }
 }
 
-export function getPiAgentDir(): string {
-  // pi-mono uses ENV_AGENT_DIR = `${APP_NAME.toUpperCase()}_CODING_AGENT_DIR`.
-  // Default APP_NAME is "pi".
-  const envDir = process.env.PI_CODING_AGENT_DIR
+export function getGsdAgentDir(): string {
+  const envDir = process.env.GSD_HOME
   if (envDir) {
     if (envDir === '~') return homedir()
     if (envDir.startsWith('~/')) return homedir() + envDir.slice(1)
     return envDir
   }
-  return join(homedir(), '.pi', 'agent')
+  return join(homedir(), '.gsd', 'agent')
 }
 
-export function hasAnyPiAuthConfigured(): boolean {
+export function hasAnyGsdAuthConfigured(): boolean {
   // 1) auth.json present and non-empty (api keys or oauth creds)
-  const agentDir = getPiAgentDir()
+  const agentDir = getGsdAgentDir()
   const authPath = join(agentDir, 'auth.json')
   const auth = safeReadJson(authPath)
   if (auth && typeof auth === 'object' && Object.keys(auth).length > 0) return true
@@ -39,14 +37,14 @@ export function hasAnyPiAuthConfigured(): boolean {
   if (providers && typeof providers === 'object') {
     for (const p of Object.values(providers as Record<string, any>)) {
       if (p && typeof p === 'object' && typeof (p as any).apiKey === 'string' && (p as any).apiKey.trim()) {
-        // Note: pi treats a non-empty string as either env-var name OR literal secret.
+        // Note: gsd treats a non-empty string as either env-var name OR literal secret.
         // So presence of apiKey config is enough to be considered "auth configured".
         return true
       }
     }
   }
 
-  // 3) Known provider env vars (mirrors pi-ai getEnvApiKey mapping)
+  // 3) Known provider env vars (mirrors gsd-ai getEnvApiKey mapping)
   const envVars = [
     'OPENAI_API_KEY',
     'AZURE_OPENAI_API_KEY',

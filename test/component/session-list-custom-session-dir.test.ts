@@ -4,10 +4,10 @@ import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { listPiSessions } from '../../src/acp/pi-sessions.js'
+import { listGsdSessions } from '../../src/acp/gsd-sessions.js'
 
-test('listPiSessions: respects sessionDir from pi settings.json', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'pi-acp-test-'))
+test('listGsdSessions: respects sessionDir from gsd settings.json', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'gsd-acp-test-'))
   const customSessionsDir = join(root, 'somewhere-else', '--p--')
   mkdirSync(customSessionsDir, { recursive: true })
 
@@ -22,15 +22,15 @@ test('listPiSessions: respects sessionDir from pi settings.json', async () => {
     { encoding: 'utf8' }
   )
 
-  const oldEnv = process.env.PI_CODING_AGENT_DIR
-  process.env.PI_CODING_AGENT_DIR = root
+  const oldEnv = process.env.GSD_HOME
+  process.env.GSD_HOME = root
 
   try {
-    const s = listPiSessions().find(x => x.sessionId === 'sess-custom')
+    const s = listGsdSessions().find(x => x.sessionId === 'sess-custom')
     assert.ok(s)
     assert.equal(s?.sessionFile, join(customSessionsDir, 's.jsonl'))
   } finally {
-    if (oldEnv === undefined) delete process.env.PI_CODING_AGENT_DIR
-    else process.env.PI_CODING_AGENT_DIR = oldEnv
+    if (oldEnv === undefined) delete process.env.GSD_HOME
+    else process.env.GSD_HOME = oldEnv
   }
 })

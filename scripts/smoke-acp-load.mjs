@@ -1,4 +1,4 @@
-// Smoke test for ACP session/load in pi-acp
+// Smoke test for ACP session/load in gsd-acp
 //
 // Runs:
 // 1) initialize

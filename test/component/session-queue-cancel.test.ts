@@ -1,13 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { PiAcpSession } from '../../src/acp/session.js'
-import { FakeAgentSideConnection, FakePiRpcProcess, asAgentConn } from '../helpers/fakes.js'
+import { GsdAcpSession } from '../../src/acp/session.js'
+import { FakeAgentSideConnection, FakeGsdRpcProcess, asAgentConn } from '../helpers/fakes.js'
 
-test('PiAcpSession: cancel clears queued prompts', async () => {
+test('GsdAcpSession: cancel clears queued prompts', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
+  const proc = new FakeGsdRpcProcess()
 
-  const session = new PiAcpSession({
+  const session = new GsdAcpSession({
     sessionId: 's1',
     cwd: process.cwd(),
     mcpServers: [],

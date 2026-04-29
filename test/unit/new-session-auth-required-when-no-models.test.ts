@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { PiAcpAgent } from '../../src/acp/agent.js'
+import { GsdAcpAgent } from '../../src/acp/agent.js'
 import { FakeAgentSideConnection, asAgentConn } from '../helpers/fakes.js'
 
 class FakeSessions {
@@ -10,7 +10,7 @@ class FakeSessions {
   }
 }
 
-test('PiAcpAgent: newSession throws AUTH_REQUIRED when pi reports zero available models', async () => {
+test('GsdAcpAgent: newSession throws AUTH_REQUIRED when gsd reports zero available models', async () => {
   const conn = new FakeAgentSideConnection()
 
   const session = {
@@ -30,7 +30,7 @@ test('PiAcpAgent: newSession throws AUTH_REQUIRED when pi reports zero available
     }
   }
 
-  const agent = new PiAcpAgent(asAgentConn(conn), {} as any)
+  const agent = new GsdAcpAgent(asAgentConn(conn), {} as any)
   ;(agent as any).sessions = new FakeSessions(session) as any
 
   let threw = false

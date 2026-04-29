@@ -1,6 +1,6 @@
 import type { AvailableCommand } from '@agentclientprotocol/sdk'
 
-export type PiRpcCommandInfo = {
+export type GsdRpcCommandInfo = {
   name?: unknown
   description?: unknown
   source?: unknown
@@ -8,7 +8,7 @@ export type PiRpcCommandInfo = {
   path?: unknown
 }
 
-function describeFallback(c: PiRpcCommandInfo): string {
+function describeFallback(c: GsdRpcCommandInfo): string {
   const source = typeof c.source === 'string' ? c.source : ''
   const location = typeof c.location === 'string' ? c.location : ''
 
@@ -19,18 +19,18 @@ function describeFallback(c: PiRpcCommandInfo): string {
   return parts.length ? `(${parts.join(':')})` : '(command)'
 }
 
-export function toAvailableCommandsFromPiGetCommands(
+export function toAvailableCommandsFromGsdGetCommands(
   data: unknown,
   opts?: { enableSkillCommands?: boolean; includeExtensionCommands?: boolean }
 ): {
   commands: AvailableCommand[]
-  raw: PiRpcCommandInfo[]
+  raw: GsdRpcCommandInfo[]
 } {
   const enableSkillCommands = opts?.enableSkillCommands ?? true
   const includeExtensionCommands = opts?.includeExtensionCommands ?? false
 
   const root: any = data
-  const commandsRaw: PiRpcCommandInfo[] = Array.isArray(root?.commands) ? root.commands : Array.isArray(root?.data?.commands) ? root.data.commands : []
+  const commandsRaw: GsdRpcCommandInfo[] = Array.isArray(root?.commands) ? root.commands : Array.isArray(root?.data?.commands) ? root.data.commands : []
 
   const out: AvailableCommand[] = []
 

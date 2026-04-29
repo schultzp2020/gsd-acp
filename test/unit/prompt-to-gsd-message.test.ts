@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { promptToPiMessage } from '../../src/acp/translate/prompt.js'
+import { promptToGsdMessage } from '../../src/acp/translate/prompt.js'
 
-test('promptToPiMessage: concatenates text and resource links', () => {
-  const { message, images } = promptToPiMessage([
+test('promptToGsdMessage: concatenates text and resource links', () => {
+  const { message, images } = promptToGsdMessage([
     { type: 'text', text: 'Hello' },
     { type: 'resource_link', uri: 'file:///tmp/foo.txt', name: 'foo' },
     { type: 'text', text: ' world' }
@@ -13,8 +13,8 @@ test('promptToPiMessage: concatenates text and resource links', () => {
   assert.deepEqual(images, [])
 })
 
-test('promptToPiMessage: includes embedded resource text as marker', () => {
-  const { message, images } = promptToPiMessage([
+test('promptToGsdMessage: includes embedded resource text as marker', () => {
+  const { message, images } = promptToGsdMessage([
     {
       type: 'resource',
       resource: {
@@ -29,10 +29,10 @@ test('promptToPiMessage: includes embedded resource text as marker', () => {
   assert.deepEqual(images, [])
 })
 
-test('promptToPiMessage: includes embedded resource blob as marker', () => {
+test('promptToGsdMessage: includes embedded resource blob as marker', () => {
   const blob = Buffer.from('xyz', 'utf8').toString('base64')
 
-  const { message, images } = promptToPiMessage([
+  const { message, images } = promptToGsdMessage([
     {
       type: 'resource',
       resource: {
@@ -47,19 +47,19 @@ test('promptToPiMessage: includes embedded resource blob as marker', () => {
   assert.deepEqual(images, [])
 })
 
-test('promptToPiMessage: includes audio as marker', () => {
+test('promptToGsdMessage: includes audio as marker', () => {
   const data = Buffer.from('abc', 'utf8').toString('base64')
 
-  const { message, images } = promptToPiMessage([{ type: 'audio', mimeType: 'audio/wav', data }] as any)
+  const { message, images } = promptToGsdMessage([{ type: 'audio', mimeType: 'audio/wav', data }] as any)
 
-  assert.equal(message, '\n[Audio] (audio/wav, 3 bytes) not supported by pi-acp')
+  assert.equal(message, '\n[Audio] (audio/wav, 3 bytes) not supported by gsd-acp')
   assert.deepEqual(images, [])
 })
 
-test('promptToPiMessage: maps image to pi image content', () => {
+test('promptToGsdMessage: maps image to gsd image content', () => {
   const base64 = Buffer.from('abc', 'utf8').toString('base64')
 
-  const { message, images } = promptToPiMessage([
+  const { message, images } = promptToGsdMessage([
     { type: 'text', text: 'see' },
     { type: 'image', mimeType: 'image/png', data: base64, uri: 'img-1' }
   ])

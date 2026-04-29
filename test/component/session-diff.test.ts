@@ -4,19 +4,19 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { PiAcpSession } from '../../src/acp/session.js'
-import { FakeAgentSideConnection, FakePiRpcProcess, asAgentConn } from '../helpers/fakes.js'
+import { GsdAcpSession } from '../../src/acp/session.js'
+import { FakeAgentSideConnection, FakeGsdRpcProcess, asAgentConn } from '../helpers/fakes.js'
 
-test('PiAcpSession: emits ACP diff content for edit tool when file changes', async () => {
+test('GsdAcpSession: emits ACP diff content for edit tool when file changes', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
+  const proc = new FakeGsdRpcProcess()
 
-  const dir = mkdtempSync(join(tmpdir(), 'pi-acp-diff-'))
+  const dir = mkdtempSync(join(tmpdir(), 'gsd-acp-diff-'))
   mkdirSync(dir, { recursive: true })
   const filePath = join(dir, 'a.txt')
   writeFileSync(filePath, 'before\n', 'utf8')
 
-  new PiAcpSession({
+  new GsdAcpSession({
     sessionId: 's1',
     cwd: dir,
     mcpServers: [],
@@ -28,7 +28,7 @@ test('PiAcpSession: emits ACP diff content for edit tool when file changes', asy
   // Start edit -> snapshot should be taken
   proc.emit({ type: 'tool_execution_start', toolCallId: 't1', toolName: 'edit', args: { path: 'a.txt' } })
 
-  // Simulate file being edited by pi
+  // Simulate file being edited by gsd
   writeFileSync(filePath, 'after\n', 'utf8')
 
   proc.emit({

@@ -4,12 +4,12 @@ import { join } from 'node:path'
 /**
  * Storage owned by the ACP adapter.
  *
- * We intentionally keep this separate from pi's own ~/.pi/agent/* directory.
+ * We intentionally keep this separate from gsd's own ~/.gsd/agent/* directory.
  */
-export function getPiAcpDir(): string {
-  return join(homedir(), '.pi', 'pi-acp')
+export function getGsdAcpDir(): string {
+  return join(homedir(), '.gsd', 'gsd-acp')
 }
 
-export function getPiAcpSessionMapPath(): string {
-  return join(getPiAcpDir(), 'session-map.json')
+export function getGsdAcpSessionMapPath(): string {
+  return join(getGsdAcpDir(), 'session-map.json')
 }

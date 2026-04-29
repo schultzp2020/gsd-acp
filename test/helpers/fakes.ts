@@ -1,5 +1,5 @@
 import type { AgentSideConnection } from '@agentclientprotocol/sdk'
-import type { PiRpcEvent } from '../../src/pi-rpc/process.js'
+import type { GsdRpcEvent } from '../../src/gsd-rpc/process.js'
 
 type SessionUpdateMsg = Parameters<AgentSideConnection['sessionUpdate']>[0]
 
@@ -11,21 +11,21 @@ export class FakeAgentSideConnection {
   }
 }
 
-export class FakePiRpcProcess {
-  private handlers: Array<(ev: PiRpcEvent) => void> = []
+export class FakeGsdRpcProcess {
+  private handlers: Array<(ev: GsdRpcEvent) => void> = []
 
   // spies
   readonly prompts: Array<{ message: string; attachments: unknown[] }> = []
   abortCount = 0
 
-  onEvent(handler: (ev: PiRpcEvent) => void): () => void {
+  onEvent(handler: (ev: GsdRpcEvent) => void): () => void {
     this.handlers.push(handler)
     return () => {
       this.handlers = this.handlers.filter(h => h !== handler)
     }
   }
 
-  emit(ev: PiRpcEvent) {
+  emit(ev: GsdRpcEvent) {
     for (const h of this.handlers) h(ev)
   }
 
@@ -52,6 +52,6 @@ export class FakePiRpcProcess {
 }
 
 export function asAgentConn(conn: FakeAgentSideConnection): AgentSideConnection {
-  // We only implement the method(s) used by PiAcpSession in tests.
+  // We only implement the method(s) used by GsdAcpSession in tests.
   return conn as unknown as AgentSideConnection
 }

@@ -4,11 +4,11 @@ import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { PiAcpAgent } from '../../src/acp/agent.js'
+import { GsdAcpAgent } from '../../src/acp/agent.js'
 import { FakeAgentSideConnection, asAgentConn } from '../helpers/fakes.js'
 
-test('PiAcpAgent: unstable_listSessions defaults to lastSessionCwd when cwd param is omitted', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'pi-acp-test-'))
+test('GsdAcpAgent: unstable_listSessions defaults to lastSessionCwd when cwd param is omitted', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'gsd-acp-test-'))
 
   const dirA = join(root, 'sessions', '--a--')
   const dirB = join(root, 'sessions', '--b--')
@@ -33,12 +33,12 @@ test('PiAcpAgent: unstable_listSessions defaults to lastSessionCwd when cwd para
     { encoding: 'utf8' }
   )
 
-  const oldEnv = process.env.PI_CODING_AGENT_DIR
-  process.env.PI_CODING_AGENT_DIR = root
+  const oldEnv = process.env.GSD_HOME
+  process.env.GSD_HOME = root
 
   try {
     const conn = new FakeAgentSideConnection()
-    const agent = new PiAcpAgent(asAgentConn(conn))
+    const agent = new GsdAcpAgent(asAgentConn(conn))
 
     ;(agent as any).lastSessionCwd = '/cwd/a'
 
@@ -46,7 +46,7 @@ test('PiAcpAgent: unstable_listSessions defaults to lastSessionCwd when cwd para
     assert.equal(listed.sessions.length, 1)
     assert.equal(listed.sessions[0]?.sessionId, 'sess-a')
   } finally {
-    if (oldEnv === undefined) delete process.env.PI_CODING_AGENT_DIR
-    else process.env.PI_CODING_AGENT_DIR = oldEnv
+    if (oldEnv === undefined) delete process.env.GSD_HOME
+    else process.env.GSD_HOME = oldEnv
   }
 })

@@ -3,14 +3,14 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { PiAcpSession } from '../../src/acp/session.js'
-import { FakeAgentSideConnection, FakePiRpcProcess, asAgentConn } from '../helpers/fakes.js'
+import { GsdAcpSession } from '../../src/acp/session.js'
+import { FakeAgentSideConnection, FakeGsdRpcProcess, asAgentConn } from '../helpers/fakes.js'
 
-test('PiAcpSession: emits agent_message_chunk for text_delta', async () => {
+test('GsdAcpSession: emits agent_message_chunk for text_delta', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
+  const proc = new FakeGsdRpcProcess()
 
-  new PiAcpSession({
+  new GsdAcpSession({
     sessionId: 's1',
     cwd: process.cwd(),
     mcpServers: [],
@@ -34,11 +34,11 @@ test('PiAcpSession: emits agent_message_chunk for text_delta', async () => {
   })
 })
 
-test('PiAcpSession: emits agent_thought_chunk for thinking_delta', async () => {
+test('GsdAcpSession: emits agent_thought_chunk for thinking_delta', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
+  const proc = new FakeGsdRpcProcess()
 
-  new PiAcpSession({
+  new GsdAcpSession({
     sessionId: 's1',
     cwd: process.cwd(),
     mcpServers: [],
@@ -62,11 +62,11 @@ test('PiAcpSession: emits agent_thought_chunk for thinking_delta', async () => {
   })
 })
 
-test('PiAcpSession: emits tool_call + tool_call_update + completes', async () => {
+test('GsdAcpSession: emits tool_call + tool_call_update + completes', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
+  const proc = new FakeGsdRpcProcess()
 
-  new PiAcpSession({
+  new GsdAcpSession({
     sessionId: 's1',
     cwd: process.cwd(),
     mcpServers: [],
@@ -106,11 +106,11 @@ test('PiAcpSession: emits tool_call + tool_call_update + completes', async () =>
   assert.equal((conn.updates[2]!.update as any).status, 'completed')
 })
 
-test('PiAcpSession: emits tool locations from pi path args', async () => {
+test('GsdAcpSession: emits tool locations from gsd path args', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
+  const proc = new FakeGsdRpcProcess()
 
-  new PiAcpSession({
+  new GsdAcpSession({
     sessionId: 's1',
     cwd: process.cwd(),
     mcpServers: [],
@@ -125,14 +125,14 @@ test('PiAcpSession: emits tool locations from pi path args', async () => {
 
   assert.equal(conn.updates.length, 1)
   assert.equal(conn.updates[0]!.update.sessionUpdate, 'tool_call')
-  assert.deepEqual((conn.updates[0]!.update as any).locations, [{ path: `${process.cwd()}/src/acp/session.ts` }])
+  assert.deepEqual((conn.updates[0]!.update as any).locations, [{ path: join(process.cwd(), 'src/acp/session.ts') }])
 })
 
-test('PiAcpSession: emits agent_message_chunk for auto_retry_start with attempt/maxAttempts and rounded delay', async () => {
+test('GsdAcpSession: emits agent_message_chunk for auto_retry_start with attempt/maxAttempts and rounded delay', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
+  const proc = new FakeGsdRpcProcess()
 
-  new PiAcpSession({
+  new GsdAcpSession({
     sessionId: 's1',
     cwd: process.cwd(),
     mcpServers: [],
@@ -152,11 +152,11 @@ test('PiAcpSession: emits agent_message_chunk for auto_retry_start with attempt/
   })
 })
 
-test('PiAcpSession: formats a positive sub-second auto_retry_start delay as waiting 1s', async () => {
+test('GsdAcpSession: formats a positive sub-second auto_retry_start delay as waiting 1s', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
+  const proc = new FakeGsdRpcProcess()
 
-  new PiAcpSession({
+  new GsdAcpSession({
     sessionId: 's1',
     cwd: process.cwd(),
     mcpServers: [],
@@ -176,11 +176,11 @@ test('PiAcpSession: formats a positive sub-second auto_retry_start delay as wait
   })
 })
 
-test('PiAcpSession: falls back to a generic retry message when auto_retry_start fields are missing or malformed', async () => {
+test('GsdAcpSession: falls back to a generic retry message when auto_retry_start fields are missing or malformed', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
+  const proc = new FakeGsdRpcProcess()
 
-  new PiAcpSession({
+  new GsdAcpSession({
     sessionId: 's1',
     cwd: process.cwd(),
     mcpServers: [],
@@ -200,11 +200,11 @@ test('PiAcpSession: falls back to a generic retry message when auto_retry_start 
   })
 })
 
-test('PiAcpSession: omits raw errorMessage content from surfaced auto_retry_start status text', async () => {
+test('GsdAcpSession: omits raw errorMessage content from surfaced auto_retry_start status text', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
+  const proc = new FakeGsdRpcProcess()
 
-  new PiAcpSession({
+  new GsdAcpSession({
     sessionId: 's1',
     cwd: process.cwd(),
     mcpServers: [],
@@ -229,11 +229,11 @@ test('PiAcpSession: omits raw errorMessage content from surfaced auto_retry_star
   assert.equal((conn.updates[0]!.update as any).content.text.includes('provider overloaded'), false)
 })
 
-test('PiAcpSession: emits agent_message_chunk for auto_retry_end', async () => {
+test('GsdAcpSession: emits agent_message_chunk for auto_retry_end', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
+  const proc = new FakeGsdRpcProcess()
 
-  new PiAcpSession({
+  new GsdAcpSession({
     sessionId: 's1',
     cwd: process.cwd(),
     mcpServers: [],
@@ -253,11 +253,11 @@ test('PiAcpSession: emits agent_message_chunk for auto_retry_end', async () => {
   })
 })
 
-test('PiAcpSession: emits agent_message_chunk for auto_compaction_start', async () => {
+test('GsdAcpSession: emits agent_message_chunk for auto_compaction_start', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
+  const proc = new FakeGsdRpcProcess()
 
-  new PiAcpSession({
+  new GsdAcpSession({
     sessionId: 's1',
     cwd: process.cwd(),
     mcpServers: [],
@@ -277,11 +277,11 @@ test('PiAcpSession: emits agent_message_chunk for auto_compaction_start', async 
   })
 })
 
-test('PiAcpSession: emits agent_message_chunk for auto_compaction_end', async () => {
+test('GsdAcpSession: emits agent_message_chunk for auto_compaction_end', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
+  const proc = new FakeGsdRpcProcess()
 
-  new PiAcpSession({
+  new GsdAcpSession({
     sessionId: 's1',
     cwd: process.cwd(),
     mcpServers: [],
@@ -304,11 +304,11 @@ test('PiAcpSession: emits agent_message_chunk for auto_compaction_end', async ()
   })
 })
 
-test('PiAcpSession: preserves ordering when auto_retry_start is interleaved with text_delta events', async () => {
+test('GsdAcpSession: preserves ordering when auto_retry_start is interleaved with text_delta events', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
+  const proc = new FakeGsdRpcProcess()
 
-  new PiAcpSession({
+  new GsdAcpSession({
     sessionId: 's1',
     cwd: process.cwd(),
     mcpServers: [],
@@ -336,11 +336,11 @@ test('PiAcpSession: preserves ordering when auto_retry_start is interleaved with
   )
 })
 
-test('PiAcpSession: emits streamed tool locations from pi path args', async () => {
+test('GsdAcpSession: emits streamed tool locations from gsd path args', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
+  const proc = new FakeGsdRpcProcess()
 
-  new PiAcpSession({
+  new GsdAcpSession({
     sessionId: 's1',
     cwd: process.cwd(),
     mcpServers: [],
@@ -368,16 +368,16 @@ test('PiAcpSession: emits streamed tool locations from pi path args', async () =
   assert.deepEqual((conn.updates[0]!.update as any).locations, [{ path: '/tmp/test.txt' }])
 })
 
-test('PiAcpSession: emits edit tool line when oldText matches uniquely', async () => {
+test('GsdAcpSession: emits edit tool line when oldText matches uniquely', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
-  const cwd = mkdtempSync(join(tmpdir(), 'pi-acp-lines-'))
+  const proc = new FakeGsdRpcProcess()
+  const cwd = mkdtempSync(join(tmpdir(), 'gsd-acp-lines-'))
   const filePath = join(cwd, 'a.txt')
 
   mkdirSync(cwd, { recursive: true })
   writeFileSync(filePath, 'one\ntwo\nneedle\nthree\n', 'utf8')
 
-  new PiAcpSession({
+  new GsdAcpSession({
     sessionId: 's1',
     cwd,
     mcpServers: [],
@@ -400,16 +400,16 @@ test('PiAcpSession: emits edit tool line when oldText matches uniquely', async (
   assert.deepEqual((conn.updates[0]!.update as any).locations, [{ path: filePath, line: 3 }])
 })
 
-test('PiAcpSession: omits edit tool line when oldText matches multiple times', async () => {
+test('GsdAcpSession: omits edit tool line when oldText matches multiple times', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
-  const cwd = mkdtempSync(join(tmpdir(), 'pi-acp-lines-dup-'))
+  const proc = new FakeGsdRpcProcess()
+  const cwd = mkdtempSync(join(tmpdir(), 'gsd-acp-lines-dup-'))
   const filePath = join(cwd, 'a.txt')
 
   mkdirSync(cwd, { recursive: true })
   writeFileSync(filePath, 'one\nneedle\ntwo\nneedle\n', 'utf8')
 
-  new PiAcpSession({
+  new GsdAcpSession({
     sessionId: 's1',
     cwd,
     mcpServers: [],
@@ -432,11 +432,11 @@ test('PiAcpSession: omits edit tool line when oldText matches multiple times', a
   assert.deepEqual((conn.updates[0]!.update as any).locations, [{ path: filePath }])
 })
 
-test('PiAcpSession: prompt resolves end_turn on agent_end', async () => {
+test('GsdAcpSession: prompt resolves end_turn on agent_end', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
+  const proc = new FakeGsdRpcProcess()
 
-  const session = new PiAcpSession({
+  const session = new GsdAcpSession({
     sessionId: 's1',
     cwd: process.cwd(),
     mcpServers: [],
@@ -453,11 +453,11 @@ test('PiAcpSession: prompt resolves end_turn on agent_end', async () => {
   assert.equal(reason, 'end_turn')
 })
 
-test('PiAcpSession: cancel flips stopReason to cancelled', async () => {
+test('GsdAcpSession: cancel flips stopReason to cancelled', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
+  const proc = new FakeGsdRpcProcess()
 
-  const session = new PiAcpSession({
+  const session = new GsdAcpSession({
     sessionId: 's1',
     cwd: process.cwd(),
     mcpServers: [],
@@ -477,11 +477,11 @@ test('PiAcpSession: cancel flips stopReason to cancelled', async () => {
   assert.equal(reason, 'cancelled')
 })
 
-test('PiAcpSession: queues concurrent prompt and starts it after agent_end', async () => {
+test('GsdAcpSession: queues concurrent prompt and starts it after agent_end', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
+  const proc = new FakeGsdRpcProcess()
 
-  const session = new PiAcpSession({
+  const session = new GsdAcpSession({
     sessionId: 's1',
     cwd: process.cwd(),
     mcpServers: [],
@@ -514,11 +514,11 @@ test('PiAcpSession: queues concurrent prompt and starts it after agent_end', asy
   assert.equal(r2, 'end_turn')
 })
 
-test('PiAcpSession: cancel clears queued prompts', async () => {
+test('GsdAcpSession: cancel clears queued prompts', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
+  const proc = new FakeGsdRpcProcess()
 
-  const session = new PiAcpSession({
+  const session = new GsdAcpSession({
     sessionId: 's1',
     cwd: process.cwd(),
     mcpServers: [],
@@ -544,11 +544,11 @@ test('PiAcpSession: cancel clears queued prompts', async () => {
   assert.equal(r2, 'cancelled')
 })
 
-test('PiAcpSession: expands /command before sending to pi', async () => {
+test('GsdAcpSession: expands /command before sending to gsd', async () => {
   const conn = new FakeAgentSideConnection()
-  const proc = new FakePiRpcProcess()
+  const proc = new FakeGsdRpcProcess()
 
-  const session = new PiAcpSession({
+  const session = new GsdAcpSession({
     sessionId: 's1',
     cwd: process.cwd(),
     mcpServers: [],
