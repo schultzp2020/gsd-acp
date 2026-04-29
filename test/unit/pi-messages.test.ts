@@ -1,14 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { normalizePiAssistantText, normalizePiMessageText } from '../../src/acp/translate/gsd-messages.js'
+import { normalizeGsdAssistantText, normalizeGsdMessageText } from '../../src/acp/translate/gsd-messages.js'
 
-test('normalizePiMessageText: supports string', () => {
-  assert.equal(normalizePiMessageText('hello'), 'hello')
+test('normalizeGsdMessageText: supports string', () => {
+  assert.equal(normalizeGsdMessageText('hello'), 'hello')
 })
 
-test('normalizePiMessageText: joins text blocks', () => {
+test('normalizeGsdMessageText: joins text blocks', () => {
   assert.equal(
-    normalizePiMessageText([
+    normalizeGsdMessageText([
       { type: 'text', text: 'a' },
       { type: 'text', text: 'b' },
       { type: 'not_text', x: 1 }
@@ -17,9 +17,9 @@ test('normalizePiMessageText: joins text blocks', () => {
   )
 })
 
-test('normalizePiAssistantText: joins only text blocks', () => {
+test('normalizeGsdAssistantText: joins only text blocks', () => {
   assert.equal(
-    normalizePiAssistantText([
+    normalizeGsdAssistantText([
       { type: 'text', text: 'hi' },
       { type: 'thinking', text: '...' },
       { type: 'text', text: '!' }

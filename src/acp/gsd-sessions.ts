@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync, openSync, readSync, closeSync, exi
 import { homedir } from 'node:os'
 import { join, resolve, isAbsolute } from 'node:path'
 
-export type PiSessionListItem = {
+export type GsdSessionListItem = {
   sessionId: string
   cwd: string
   title: string | null
@@ -13,7 +13,7 @@ export type PiSessionListItem = {
 const DEFAULT_TAIL_BYTES = 256 * 1024
 const DEFAULT_HEAD_BYTES = 64 * 1024
 
-function getPiAgentDir(): string {
+function getGsdAgentDir(): string {
   // pi supports overriding config dir via PI_CODING_AGENT_DIR.
   // See pi README.
   return process.env.PI_CODING_AGENT_DIR ? resolve(process.env.PI_CODING_AGENT_DIR) : join(homedir(), '.pi', 'agent')
@@ -36,8 +36,8 @@ function readSessionDirFromSettings(agentDir: string): string | null {
   }
 }
 
-export function getPiSessionsDir(): string {
-  const agentDir = getPiAgentDir()
+export function getGsdSessionsDir(): string {
+  const agentDir = getGsdAgentDir()
   return readSessionDirFromSettings(agentDir) ?? join(agentDir, 'sessions')
 }
 
@@ -262,12 +262,12 @@ function pickFallbackTitleFromHead(path: string): string | null {
   return null
 }
 
-export function listPiSessions(): PiSessionListItem[] {
-  const sessionsDir = getPiSessionsDir()
+export function listGsdSessions(): GsdSessionListItem[] {
+  const sessionsDir = getGsdSessionsDir()
   const files: string[] = []
   walkJsonlFiles(sessionsDir, files)
 
-  const items: PiSessionListItem[] = []
+  const items: GsdSessionListItem[] = []
 
   for (const file of files) {
     const first = readFirstLine(file)
@@ -323,8 +323,8 @@ export function listPiSessions(): PiSessionListItem[] {
   return items
 }
 
-export function findPiSessionFile(sessionId: string): string | null {
-  const all = listPiSessions()
+export function findGsdSessionFile(sessionId: string): string | null {
+  const all = listGsdSessions()
   const found = all.find(s => s.sessionId === sessionId)
   return found?.sessionFile ?? null
 }

@@ -11,7 +11,7 @@ import { RequestError } from '@agentclientprotocol/sdk'
 import { maybeAuthRequiredError } from './auth-required.js'
 import { readFileSync } from 'node:fs'
 import { isAbsolute, resolve as resolvePath } from 'node:path'
-import { PiRpcProcess, PiRpcSpawnError, type PiRpcEvent } from '../gsd-rpc/process.js'
+import { GsdRpcProcess, GsdRpcSpawnError, type GsdRpcEvent } from '../gsd-rpc/process.js'
 import { SessionStore } from './session-store.js'
 import { toolResultToText } from './translate/gsd-tools.js'
 import { expandSlashCommand, type FileSlashCommand } from './slash-commands.js'
@@ -63,7 +63,7 @@ function toToolCallLocations(args: unknown, cwd: string, line?: number): ToolCal
 }
 
 export class SessionManager {
-  private sessions = new Map<string, PiAcpSession>()
+  private sessions = new Map<string, GsdAcpSession>()
   private readonly store = new SessionStore()
 
   /** Dispose all sessions and their underlying pi subprocesses. */
@@ -72,7 +72,7 @@ export class SessionManager {
   }
 
   /** Get a registered session if it exists (no throw). */
-  maybeGet(sessionId: string): PiAcpSession | undefined {
+  maybeGet(sessionId: string): GsdAcpSession | undefined {
     return this.sessions.get(sessionId)
   }
 
@@ -99,17 +99,17 @@ export class SessionManager {
     }
   }
 
-  async create(params: SessionCreateParams): Promise<PiAcpSession> {
+  async create(params: SessionCreateParams): Promise<GsdAcpSession> {
     // Let pi manage session persistence in its default location (~/.pi/agent/sessions/...)
     // so sessions are visible to the regular `pi` CLI.
-    let proc: PiRpcProcess
+    let proc: GsdRpcProcess
     try {
-      proc = await PiRpcProcess.spawn({
+      proc = await GsdRpcProcess.spawn({
         cwd: params.cwd,
         piCommand: params.piCommand
       })
     } catch (e) {
-      if (e instanceof PiRpcSpawnError) {
+      if (e instanceof GsdRpcSpawnError) {
         throw RequestError.internalError({ code: e.code }, e.message)
       }
       throw e
@@ -129,7 +129,7 @@ export class SessionManager {
       this.store.upsert({ sessionId, cwd: params.cwd, sessionFile })
     }
 
-    const session = new PiAcpSession({
+    const session = new GsdAcpSession({
       sessionId,
       cwd: params.cwd,
       mcpServers: params.mcpServers,
@@ -142,7 +142,7 @@ export class SessionManager {
     return session
   }
 
-  get(sessionId: string): PiAcpSession {
+  get(sessionId: string): GsdAcpSession {
     const s = this.sessions.get(sessionId)
     if (!s) throw RequestError.invalidParams(`Unknown sessionId: ${sessionId}`)
     return s
@@ -152,11 +152,11 @@ export class SessionManager {
    * Used by session/load: create a session object bound to an existing sessionId/proc
    * if it isn't already registered.
    */
-  getOrCreate(sessionId: string, params: SessionCreateParams & { proc: PiRpcProcess }): PiAcpSession {
+  getOrCreate(sessionId: string, params: SessionCreateParams & { proc: GsdRpcProcess }): GsdAcpSession {
     const existing = this.sessions.get(sessionId)
     if (existing) return existing
 
-    const session = new PiAcpSession({
+    const session = new GsdAcpSession({
       sessionId,
       cwd: params.cwd,
       mcpServers: params.mcpServers,
@@ -170,7 +170,7 @@ export class SessionManager {
   }
 }
 
-export class PiAcpSession {
+export class GsdAcpSession {
   readonly sessionId: string
   readonly cwd: string
   readonly mcpServers: McpServer[]
@@ -178,7 +178,7 @@ export class PiAcpSession {
   private startupInfo: string | null = null
   private startupInfoSent = false
 
-  readonly proc: PiRpcProcess
+  readonly proc: GsdRpcProcess
   private readonly conn: AgentSideConnection
   private readonly fileCommands: FileSlashCommand[]
 
@@ -211,7 +211,7 @@ export class PiAcpSession {
     sessionId: string
     cwd: string
     mcpServers: McpServer[]
-    proc: PiRpcProcess
+    proc: GsdRpcProcess
     conn: AgentSideConnection
     fileCommands?: FileSlashCommand[]
   }) {
@@ -222,7 +222,7 @@ export class PiAcpSession {
     this.conn = opts.conn
     this.fileCommands = opts.fileCommands ?? []
 
-    this.proc.onEvent(ev => this.handlePiEvent(ev))
+    this.proc.onEvent(ev => this.handleGsdEvent(ev))
   }
 
   setStartupInfo(text: string) {
@@ -370,7 +370,7 @@ export class PiAcpSession {
     })
   }
 
-  private handlePiEvent(ev: PiRpcEvent) {
+  private handleGsdEvent(ev: GsdRpcEvent) {
     const type = String((ev as any).type ?? '')
 
     switch (type) {
@@ -656,7 +656,7 @@ export class PiAcpSession {
   }
 }
 
-function formatAutoRetryMessage(ev: PiRpcEvent): string {
+function formatAutoRetryMessage(ev: GsdRpcEvent): string {
   const attempt = Number((ev as any).attempt)
   const maxAttempts = Number((ev as any).maxAttempts)
   const delayMs = Number((ev as any).delayMs)

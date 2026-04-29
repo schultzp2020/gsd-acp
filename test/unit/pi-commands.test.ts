@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { toAvailableCommandsFromPiGetCommands } from '../../src/acp/gsd-commands.js'
+import { toAvailableCommandsFromGsdGetCommands } from '../../src/acp/gsd-commands.js'
 
-test('toAvailableCommandsFromPiGetCommands: hides extension commands by default and filters skill commands', () => {
+test('toAvailableCommandsFromGsdGetCommands: hides extension commands by default and filters skill commands', () => {
   const data = {
     commands: [
       { name: 'x', description: 'X', source: 'extension' },
@@ -11,13 +11,13 @@ test('toAvailableCommandsFromPiGetCommands: hides extension commands by default 
     ]
   }
 
-  const all = toAvailableCommandsFromPiGetCommands(data, { enableSkillCommands: true }).commands
+  const all = toAvailableCommandsFromGsdGetCommands(data, { enableSkillCommands: true }).commands
   assert.deepEqual(all, [
     { name: 'skill:foo', description: 'Foo' },
     { name: 'y', description: '(prompt:project)' }
   ])
 
-  const includeExt = toAvailableCommandsFromPiGetCommands(data, {
+  const includeExt = toAvailableCommandsFromGsdGetCommands(data, {
     enableSkillCommands: true,
     includeExtensionCommands: true
   }).commands
@@ -27,6 +27,6 @@ test('toAvailableCommandsFromPiGetCommands: hides extension commands by default 
     { name: 'y', description: '(prompt:project)' }
   ])
 
-  const noSkills = toAvailableCommandsFromPiGetCommands(data, { enableSkillCommands: false }).commands
+  const noSkills = toAvailableCommandsFromGsdGetCommands(data, { enableSkillCommands: false }).commands
   assert.deepEqual(noSkills, [{ name: 'y', description: '(prompt:project)' }])
 })

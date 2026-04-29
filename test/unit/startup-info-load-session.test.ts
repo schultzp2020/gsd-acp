@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { PiAcpAgent } from '../../src/acp/agent.js'
+import { GsdAcpAgent } from '../../src/acp/agent.js'
 import { FakeAgentSideConnection, asAgentConn } from '../helpers/fakes.js'
-import { PiRpcProcess } from '../../src/gsd-rpc/process.js'
+import { GsdRpcProcess } from '../../src/gsd-rpc/process.js'
 
 class FakeStore {
   get(_sessionId: string) {
@@ -13,7 +13,7 @@ class FakeStore {
   }
 }
 
-test('PiAcpAgent: does not emit startup info on loadSession', async () => {
+test('GsdAcpAgent: does not emit startup info on loadSession', async () => {
   // spy on timers (commands update is scheduled)
   const realSetTimeout = globalThis.setTimeout
   const timeouts: Array<unknown> = []
@@ -22,8 +22,8 @@ test('PiAcpAgent: does not emit startup info on loadSession', async () => {
     return 0 as any
   }
 
-  const originalSpawn = PiRpcProcess.spawn
-  ;(PiRpcProcess as any).spawn = async () => {
+  const originalSpawn = GsdRpcProcess.spawn
+  ;(GsdRpcProcess as any).spawn = async () => {
     return {
       onEvent: () => () => {},
       getMessages: async () => ({ messages: [] }),
@@ -34,7 +34,7 @@ test('PiAcpAgent: does not emit startup info on loadSession', async () => {
 
   try {
     const conn = new FakeAgentSideConnection()
-    const agent = new PiAcpAgent(asAgentConn(conn))
+    const agent = new GsdAcpAgent(asAgentConn(conn))
 
     // Inject store so loadSession resolves without depending on actual filesystem.
     ;(agent as any).store = new FakeStore()
@@ -47,6 +47,6 @@ test('PiAcpAgent: does not emit startup info on loadSession', async () => {
     assert.equal(timeouts.length, 1)
   } finally {
     ;(globalThis as any).setTimeout = realSetTimeout
-    PiRpcProcess.spawn = originalSpawn
+    GsdRpcProcess.spawn = originalSpawn
   }
 })

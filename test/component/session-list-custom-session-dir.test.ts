@@ -4,9 +4,9 @@ import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { listPiSessions } from '../../src/acp/gsd-sessions.js'
+import { listGsdSessions } from '../../src/acp/gsd-sessions.js'
 
-test('listPiSessions: respects sessionDir from pi settings.json', async () => {
+test('listGsdSessions: respects sessionDir from pi settings.json', async () => {
   const root = mkdtempSync(join(tmpdir(), 'pi-acp-test-'))
   const customSessionsDir = join(root, 'somewhere-else', '--p--')
   mkdirSync(customSessionsDir, { recursive: true })
@@ -26,7 +26,7 @@ test('listPiSessions: respects sessionDir from pi settings.json', async () => {
   process.env.PI_CODING_AGENT_DIR = root
 
   try {
-    const s = listPiSessions().find(x => x.sessionId === 'sess-custom')
+    const s = listGsdSessions().find(x => x.sessionId === 'sess-custom')
     assert.ok(s)
     assert.equal(s?.sessionFile, join(customSessionsDir, 's.jsonl'))
   } finally {

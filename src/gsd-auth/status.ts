@@ -13,7 +13,7 @@ function safeReadJson(path: string): any | null {
   }
 }
 
-export function getPiAgentDir(): string {
+export function getGsdAgentDir(): string {
   // pi-mono uses ENV_AGENT_DIR = `${APP_NAME.toUpperCase()}_CODING_AGENT_DIR`.
   // Default APP_NAME is "pi".
   const envDir = process.env.PI_CODING_AGENT_DIR
@@ -25,9 +25,9 @@ export function getPiAgentDir(): string {
   return join(homedir(), '.pi', 'agent')
 }
 
-export function hasAnyPiAuthConfigured(): boolean {
+export function hasAnyGsdAuthConfigured(): boolean {
   // 1) auth.json present and non-empty (api keys or oauth creds)
-  const agentDir = getPiAgentDir()
+  const agentDir = getGsdAgentDir()
   const authPath = join(agentDir, 'auth.json')
   const auth = safeReadJson(authPath)
   if (auth && typeof auth === 'object' && Object.keys(auth).length > 0) return true

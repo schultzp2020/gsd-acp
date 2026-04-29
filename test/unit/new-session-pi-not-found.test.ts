@@ -3,10 +3,10 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { PiAcpAgent } from '../../src/acp/agent.js'
+import { GsdAcpAgent } from '../../src/acp/agent.js'
 import { FakeAgentSideConnection, asAgentConn } from '../helpers/fakes.js'
 
-test('PiAcpAgent: newSession returns a helpful Internal error when pi is not installed', async () => {
+test('GsdAcpAgent: newSession returns a helpful Internal error when pi is not installed', async () => {
   const prevAgentDir = process.env.PI_CODING_AGENT_DIR
   const prevPiCmd = process.env.PI_ACP_PI_COMMAND
 
@@ -20,7 +20,7 @@ test('PiAcpAgent: newSession returns a helpful Internal error when pi is not ins
 
   try {
     const conn = new FakeAgentSideConnection()
-    const agent = new PiAcpAgent(asAgentConn(conn), {} as any)
+    const agent = new GsdAcpAgent(asAgentConn(conn), {} as any)
 
     await assert.rejects(
       () => agent.newSession({ cwd: process.cwd(), mcpServers: [] } as any),

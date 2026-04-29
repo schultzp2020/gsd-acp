@@ -4,9 +4,9 @@ import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { listPiSessions } from '../../src/acp/gsd-sessions.js'
+import { listGsdSessions } from '../../src/acp/gsd-sessions.js'
 
-test('listPiSessions: updatedAt prefers last message timestamp over later non-message entries', async () => {
+test('listGsdSessions: updatedAt prefers last message timestamp over later non-message entries', async () => {
   const root = mkdtempSync(join(tmpdir(), 'pi-acp-test-'))
   const sessionsDir = join(root, 'sessions', '--p--')
   mkdirSync(sessionsDir, { recursive: true })
@@ -29,7 +29,7 @@ test('listPiSessions: updatedAt prefers last message timestamp over later non-me
   process.env.PI_CODING_AGENT_DIR = root
 
   try {
-    const sessions = listPiSessions().filter(s => s.sessionId === 'sess-1')
+    const sessions = listGsdSessions().filter(s => s.sessionId === 'sess-1')
     assert.equal(sessions.length, 1)
     assert.equal(sessions[0]?.updatedAt, '2026-01-01T00:00:02.000Z')
   } finally {

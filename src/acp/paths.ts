@@ -6,10 +6,10 @@ import { join } from 'node:path'
  *
  * We intentionally keep this separate from pi's own ~/.pi/agent/* directory.
  */
-export function getPiAcpDir(): string {
+export function getGsdAcpDir(): string {
   return join(homedir(), '.pi', 'pi-acp')
 }
 
-export function getPiAcpSessionMapPath(): string {
-  return join(getPiAcpDir(), 'session-map.json')
+export function getGsdAcpSessionMapPath(): string {
+  return join(getGsdAcpDir(), 'session-map.json')
 }

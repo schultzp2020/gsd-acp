@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { PiAcpAgent } from '../../src/acp/agent.js'
+import { GsdAcpAgent } from '../../src/acp/agent.js'
 import { FakeAgentSideConnection, asAgentConn } from '../helpers/fakes.js'
 
 class FakeSessions {
@@ -10,7 +10,7 @@ class FakeSessions {
   }
 }
 
-test('PiAcpAgent: quietStartup=true disables startup info generation/emission', async () => {
+test('GsdAcpAgent: quietStartup=true disables startup info generation/emission', async () => {
   const prevAgentDir = process.env.PI_CODING_AGENT_DIR
 
   // Force quietStartup in pi settings by pointing PI_CODING_AGENT_DIR at a temp dir.
@@ -55,7 +55,7 @@ test('PiAcpAgent: quietStartup=true disables startup info generation/emission', 
       }
     }
 
-    const agent = new PiAcpAgent(asAgentConn(conn), {} as any)
+    const agent = new GsdAcpAgent(asAgentConn(conn), {} as any)
     ;(agent as any).sessions = new FakeSessions(session) as any
 
     const res = await agent.newSession({ cwd: process.cwd(), mcpServers: [] } as any)

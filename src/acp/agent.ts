@@ -22,20 +22,20 @@ import {
 import { getAuthMethods } from './auth.js'
 import { SessionManager } from './session.js'
 import { SessionStore } from './session-store.js'
-import { PiRpcProcess } from '../gsd-rpc/process.js'
-import { listPiSessions, findPiSessionFile } from './gsd-sessions.js'
-import { normalizePiAssistantText, normalizePiMessageText } from './translate/gsd-messages.js'
+import { GsdRpcProcess } from '../gsd-rpc/process.js'
+import { listGsdSessions, findGsdSessionFile } from './gsd-sessions.js'
+import { normalizeGsdAssistantText, normalizeGsdMessageText } from './translate/gsd-messages.js'
 import { toolResultToText } from './translate/gsd-tools.js'
-import { promptToPiMessage } from './translate/prompt.js'
+import { promptToGsdMessage } from './translate/prompt.js'
 import { loadSlashCommands, parseCommandArgs, toAvailableCommands } from './slash-commands.js'
 import { getAgentDir, getEnableSkillCommands, getQuietStartup } from './gsd-settings.js'
-import { toAvailableCommandsFromPiGetCommands } from './gsd-commands.js'
+import { toAvailableCommandsFromGsdGetCommands } from './gsd-commands.js'
 import { isAbsolute } from 'node:path'
 import { existsSync, readFileSync, realpathSync, readdirSync, statSync } from 'node:fs'
 import type { AvailableCommand } from '@agentclientprotocol/sdk'
 import { join, dirname, basename } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { hasAnyPiAuthConfigured } from '../gsd-auth/status.js'
+import { hasAnyGsdAuthConfigured } from '../gsd-auth/status.js'
 
 type ThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
 
@@ -98,7 +98,7 @@ import { fileURLToPath } from 'node:url'
 
 const pkg = readNearestPackageJson(import.meta.url)
 
-export class PiAcpAgent implements ACPAgent {
+export class GsdAcpAgent implements ACPAgent {
   private readonly conn: AgentSideConnection
   private readonly sessions = new SessionManager()
   private readonly store = new SessionStore()
@@ -159,7 +159,7 @@ export class PiAcpAgent implements ACPAgent {
     // IMPORTANT: pi exits immediately in --mode rpc if no model is available (no auth configured).
     // So we must detect that situation without spawning pi, and return AUTH_REQUIRED so clients
     // (e.g. Zed) can show the Authenticate banner and launch a terminal login.
-    if (!hasAnyPiAuthConfigured()) {
+    if (!hasAnyGsdAuthConfigured()) {
       throw RequestError.authRequired(
         { authMethods: getAuthMethods() },
         'Configure an API key or log in with an OAuth provider.'
@@ -266,7 +266,7 @@ export class PiAcpAgent implements ACPAgent {
       void (async () => {
         try {
           const pi = (await session.proc.getCommands()) as any
-          const { commands } = toAvailableCommandsFromPiGetCommands(pi, {
+          const { commands } = toAvailableCommandsFromGsdGetCommands(pi, {
             enableSkillCommands,
             includeExtensionCommands: false
           })
@@ -305,7 +305,7 @@ export class PiAcpAgent implements ACPAgent {
   async prompt(params: PromptRequest): Promise<PromptResponse> {
     const session = this.sessions.get(params.sessionId)
 
-    const { message, images } = promptToPiMessage(params.prompt)
+    const { message, images } = promptToGsdMessage(params.prompt)
 
     // Built-in ACP slash command handling (headless-friendly subset).
     // Note: file-based slash commands are expanded inside session.prompt().
@@ -768,7 +768,7 @@ export class PiAcpAgent implements ACPAgent {
     // ACP: filter by cwd if provided.
     // Zed currently sends `{}` (no cwd), so we default to the last session cwd to
     // emulate pi's `/resume` picker (project-scoped).
-    const all = listPiSessions()
+    const all = listGsdSessions()
 
     const effectiveCwd = (params as any).cwd ?? this.lastSessionCwd
     const filtered = effectiveCwd ? all.filter(s => s.cwd === effectiveCwd) : all
@@ -808,22 +808,22 @@ export class PiAcpAgent implements ACPAgent {
     // MVP: ignore mcpServers.
     // Prefer ACP-created mapping first (fast path), otherwise scan pi sessions dir.
     const stored = this.store.get(params.sessionId)
-    const sessionFile = stored?.sessionFile ?? findPiSessionFile(params.sessionId)
+    const sessionFile = stored?.sessionFile ?? findGsdSessionFile(params.sessionId)
 
     if (!sessionFile) {
       throw RequestError.invalidParams(`Unknown sessionId: ${params.sessionId}`)
     }
 
     // Spawn pi and point it directly at the session file.
-    let proc: PiRpcProcess
+    let proc: GsdRpcProcess
     try {
-      proc = await PiRpcProcess.spawn({
+      proc = await GsdRpcProcess.spawn({
         cwd: params.cwd,
         sessionPath: sessionFile,
         piCommand: process.env.PI_ACP_PI_COMMAND
       })
     } catch (e: any) {
-      if (e?.name === 'PiRpcSpawnError') {
+      if (e?.name === 'GsdRpcSpawnError') {
         throw RequestError.internalError({ code: e?.code }, String(e?.message ?? e))
       }
       throw e
@@ -859,7 +859,7 @@ export class PiAcpAgent implements ACPAgent {
       const role = String(m?.role ?? '')
 
       if (role === 'user') {
-        const text = normalizePiMessageText(m?.content)
+        const text = normalizeGsdMessageText(m?.content)
         if (text) {
           await this.conn.sessionUpdate({
             sessionId: session.sessionId,
@@ -872,7 +872,7 @@ export class PiAcpAgent implements ACPAgent {
       }
 
       if (role === 'assistant') {
-        const text = normalizePiAssistantText(m?.content)
+        const text = normalizeGsdAssistantText(m?.content)
         if (text) {
           await this.conn.sessionUpdate({
             sessionId: session.sessionId,
@@ -935,7 +935,7 @@ export class PiAcpAgent implements ACPAgent {
       void (async () => {
         try {
           const pi = (await proc.getCommands()) as any
-          const { commands } = toAvailableCommandsFromPiGetCommands(pi, {
+          const { commands } = toAvailableCommandsFromGsdGetCommands(pi, {
             enableSkillCommands,
             includeExtensionCommands: false
           })
@@ -1027,7 +1027,7 @@ function isThinkingLevel(x: string): x is ThinkingLevel {
 }
 
 async function getThinkingState(
-  proc: PiRpcProcess,
+  proc: GsdRpcProcess,
   pre?: { state?: any | null }
 ): Promise<{
   availableModes: Array<{
@@ -1066,7 +1066,7 @@ async function getThinkingState(
 }
 
 async function getModelState(
-  proc: PiRpcProcess,
+  proc: GsdRpcProcess,
   pre?: { state?: any | null; availableModels?: any | null }
 ): Promise<{
   availableModels: ModelInfo[]

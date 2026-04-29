@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { PiAcpAgent } from '../../src/acp/agent.js'
+import { GsdAcpAgent } from '../../src/acp/agent.js'
 import { FakeAgentSideConnection, asAgentConn } from '../helpers/fakes.js'
 
 class FakeSessions {
@@ -12,7 +12,7 @@ class FakeSessions {
   }
 }
 
-test('PiAcpAgent: newSession returns AUTH_REQUIRED without spawning pi when no auth configured', async () => {
+test('GsdAcpAgent: newSession returns AUTH_REQUIRED without spawning pi when no auth configured', async () => {
   const prev = process.env.PI_CODING_AGENT_DIR
   const dir = mkdtempSync(join(tmpdir(), 'pi-acp-auth-'))
 
@@ -32,7 +32,7 @@ test('PiAcpAgent: newSession returns AUTH_REQUIRED without spawning pi when no a
 
   try {
     const conn = new FakeAgentSideConnection()
-    const agent = new PiAcpAgent(asAgentConn(conn), {} as any)
+    const agent = new GsdAcpAgent(asAgentConn(conn), {} as any)
     ;(agent as any).sessions = new FakeSessions() as any
 
     await assert.rejects(

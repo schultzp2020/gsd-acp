@@ -4,11 +4,11 @@ import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { listPiSessions } from '../../src/acp/gsd-sessions.js'
+import { listGsdSessions } from '../../src/acp/gsd-sessions.js'
 
 // Ensures we still pick up session_info.name even if it is older than the tail window.
 
-test('listPiSessions: finds session_info.name even when it is outside the tail window', async () => {
+test('listGsdSessions: finds session_info.name even when it is outside the tail window', async () => {
   const root = mkdtempSync(join(tmpdir(), 'pi-acp-test-'))
   const sessionsDir = join(root, 'sessions', '--p--')
   mkdirSync(sessionsDir, { recursive: true })
@@ -28,7 +28,7 @@ test('listPiSessions: finds session_info.name even when it is outside the tail w
   process.env.PI_CODING_AGENT_DIR = root
 
   try {
-    const s = listPiSessions().find(x => x.sessionId === 'sess-1')
+    const s = listGsdSessions().find(x => x.sessionId === 'sess-1')
     assert.ok(s)
     assert.equal(s?.title, 'Named Early')
   } finally {

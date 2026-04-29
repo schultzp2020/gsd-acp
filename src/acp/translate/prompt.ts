@@ -1,17 +1,17 @@
 import type { ContentBlock } from '@agentclientprotocol/sdk'
 
-export type PiImage = {
+export type GsdImage = {
   type: 'image'
   mimeType: string
   data: string
 }
 
-export function promptToPiMessage(blocks: ContentBlock[]): {
+export function promptToGsdMessage(blocks: ContentBlock[]): {
   message: string
-  images: PiImage[]
+  images: GsdImage[]
 } {
   let message = ''
-  const images: PiImage[] = []
+  const images: GsdImage[] = []
 
   for (const b of blocks) {
     switch (b.type) {

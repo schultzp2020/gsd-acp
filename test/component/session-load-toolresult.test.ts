@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { PiAcpAgent } from '../../src/acp/agent.js'
+import { GsdAcpAgent } from '../../src/acp/agent.js'
 import { FakeAgentSideConnection, asAgentConn } from '../helpers/fakes.js'
-import { PiRpcProcess } from '../../src/gsd-rpc/process.js'
+import { GsdRpcProcess } from '../../src/gsd-rpc/process.js'
 
 class FakeStore {
   get(_sessionId: string) {
@@ -12,9 +12,9 @@ class FakeStore {
   upsert() {}
 }
 
-test('PiAcpAgent: loadSession replays toolResult as tool_call + tool_call_update', async () => {
-  const originalSpawn = PiRpcProcess.spawn
-  ;(PiRpcProcess as any).spawn = async () => {
+test('GsdAcpAgent: loadSession replays toolResult as tool_call + tool_call_update', async () => {
+  const originalSpawn = GsdRpcProcess.spawn
+  ;(GsdRpcProcess as any).spawn = async () => {
     return {
       onEvent: () => () => {},
       getMessages: async () => ({
@@ -35,7 +35,7 @@ test('PiAcpAgent: loadSession replays toolResult as tool_call + tool_call_update
 
   try {
     const conn = new FakeAgentSideConnection()
-    const agent = new PiAcpAgent(asAgentConn(conn))
+    const agent = new GsdAcpAgent(asAgentConn(conn))
     ;(agent as any).store = new FakeStore()
 
     await agent.loadSession({ sessionId: 's1', cwd: '/tmp/project', mcpServers: [] } as any)
@@ -53,6 +53,6 @@ test('PiAcpAgent: loadSession replays toolResult as tool_call + tool_call_update
     assert.equal(toolCallUpdate.status, 'completed')
     assert.equal(toolCallUpdate.content?.[0]?.content?.text, 'hello from bash')
   } finally {
-    PiRpcProcess.spawn = originalSpawn
+    GsdRpcProcess.spawn = originalSpawn
   }
 })

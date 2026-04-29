@@ -4,10 +4,10 @@ import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { PiAcpAgent } from '../../src/acp/agent.js'
+import { GsdAcpAgent } from '../../src/acp/agent.js'
 import { FakeAgentSideConnection, asAgentConn } from '../helpers/fakes.js'
 
-test('PiAcpAgent: unstable_listSessions defaults to lastSessionCwd when cwd param is omitted', async () => {
+test('GsdAcpAgent: unstable_listSessions defaults to lastSessionCwd when cwd param is omitted', async () => {
   const root = mkdtempSync(join(tmpdir(), 'pi-acp-test-'))
 
   const dirA = join(root, 'sessions', '--a--')
@@ -38,7 +38,7 @@ test('PiAcpAgent: unstable_listSessions defaults to lastSessionCwd when cwd para
 
   try {
     const conn = new FakeAgentSideConnection()
-    const agent = new PiAcpAgent(asAgentConn(conn))
+    const agent = new GsdAcpAgent(asAgentConn(conn))
 
     ;(agent as any).lastSessionCwd = '/cwd/a'
 

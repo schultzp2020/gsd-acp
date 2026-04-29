@@ -1,14 +1,14 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import * as readline from 'node:readline'
-import { getPiCommand, shouldUseShellForPiCommand } from './command.js'
+import { getGsdCommand, shouldUseShellForGsdCommand } from './command.js'
 
-export class PiRpcSpawnError extends Error {
+export class GsdRpcSpawnError extends Error {
   /** Underlying spawn error code, e.g. ENOENT, EACCES */
   code?: string
 
   constructor(message: string, opts?: { code?: string; cause?: unknown }) {
     super(message)
-    this.name = 'PiRpcSpawnError'
+    this.name = 'GsdRpcSpawnError'
     this.code = opts?.code
     ;(this as any).cause = opts?.cause
   }
@@ -27,7 +27,7 @@ function stripAnsi(s: string): string {
   return s.replace(ANSI_ESCAPE_REGEX, '')
 }
 
-type PiRpcCommand =
+type GsdRpcCommand =
   | { type: 'prompt'; id?: string; message: string; images?: unknown[] }
   | { type: 'abort'; id?: string }
   | { type: 'get_state'; id?: string }
@@ -52,7 +52,7 @@ type PiRpcCommand =
   // Commands
   | { type: 'get_commands'; id?: string }
 
-type PiRpcResponse = {
+type GsdRpcResponse = {
   type: 'response'
   id?: string
   command: string
@@ -61,7 +61,7 @@ type PiRpcResponse = {
   error?: string
 }
 
-export type PiRpcEvent = Record<string, unknown>
+export type GsdRpcEvent = Record<string, unknown>
 
 type SpawnParams = {
   cwd: string
@@ -71,10 +71,10 @@ type SpawnParams = {
   sessionPath?: string
 }
 
-export class PiRpcProcess {
+export class GsdRpcProcess {
   private readonly child: ChildProcessWithoutNullStreams
-  private readonly pending = new Map<string, { resolve: (v: PiRpcResponse) => void; reject: (e: unknown) => void }>()
-  private eventHandlers: Array<(ev: PiRpcEvent) => void> = []
+  private readonly pending = new Map<string, { resolve: (v: GsdRpcResponse) => void; reject: (e: unknown) => void }>()
+  private eventHandlers: Array<(ev: GsdRpcEvent) => void> = []
   private readonly preludeLines: string[] = []
 
   private constructor(child: ChildProcessWithoutNullStreams) {
@@ -100,13 +100,13 @@ export class PiRpcProcess {
           const pending = this.pending.get(id)
           if (pending) {
             this.pending.delete(id)
-            pending.resolve(msg as PiRpcResponse)
+            pending.resolve(msg as GsdRpcResponse)
             return
           }
         }
       }
 
-      for (const h of this.eventHandlers) h(msg as PiRpcEvent)
+      for (const h of this.eventHandlers) h(msg as GsdRpcEvent)
     })
 
     child.on('exit', (code, signal) => {
@@ -121,9 +121,9 @@ export class PiRpcProcess {
     })
   }
 
-  static async spawn(params: SpawnParams): Promise<PiRpcProcess> {
+  static async spawn(params: SpawnParams): Promise<GsdRpcProcess> {
     // On Windows, npm commonly creates pi.cmd / pi.bat launcher scripts.
-    const cmd = getPiCommand(params.piCommand)
+    const cmd = getGsdCommand(params.piCommand)
 
     // Speed/robustness for ACP:
     // - themes are irrelevant in rpc mode and can be noisy/slow to load.
@@ -136,7 +136,7 @@ export class PiRpcProcess {
       cwd: params.cwd,
       stdio: 'pipe',
       env: process.env,
-      shell: shouldUseShellForPiCommand(cmd)
+      shell: shouldUseShellForGsdCommand(cmd)
     })
 
     // Ensure spawn failures (e.g. ENOENT when pi isn't installed) are surfaced as a
@@ -162,24 +162,24 @@ export class PiRpcProcess {
     } catch (e: any) {
       const code = typeof e?.code === 'string' ? e.code : undefined
       if (code === 'ENOENT') {
-        throw new PiRpcSpawnError(
+        throw new GsdRpcSpawnError(
           `Could not start pi: executable not found (command: ${cmd}). Pi needs to be installed before it can run in ACP clients. Install it via \`npm install -g @mariozechner/pi-coding-agent\` or ensure \`pi\` is on your PATH. Then try again.`,
           { code, cause: e }
         )
       }
 
       if (code === 'EACCES') {
-        throw new PiRpcSpawnError(`Could not start pi: permission denied (command: ${cmd}).`, { code, cause: e })
+        throw new GsdRpcSpawnError(`Could not start pi: permission denied (command: ${cmd}).`, { code, cause: e })
       }
 
-      throw new PiRpcSpawnError(`Could not start pi (command: ${cmd}).`, { code, cause: e })
+      throw new GsdRpcSpawnError(`Could not start pi (command: ${cmd}).`, { code, cause: e })
     }
 
     child.stderr.on('data', () => {
       // leave stderr untouched; ACP clients may capture it.
     })
 
-    const proc = new PiRpcProcess(child)
+    const proc = new GsdRpcProcess(child)
 
     // Best-effort handshake.
     // Important: pi may emit a get_state response pointing at a sessionFile in a directory
@@ -200,7 +200,7 @@ export class PiRpcProcess {
     return proc
   }
 
-  onEvent(handler: (ev: PiRpcEvent) => void): () => void {
+  onEvent(handler: (ev: GsdRpcEvent) => void): () => void {
     this.eventHandlers.push(handler)
     return () => {
       this.eventHandlers = this.eventHandlers.filter(h => h !== handler)
@@ -314,13 +314,13 @@ export class PiRpcProcess {
     return res.data
   }
 
-  private request(cmd: PiRpcCommand): Promise<PiRpcResponse> {
+  private request(cmd: GsdRpcCommand): Promise<GsdRpcResponse> {
     const id = crypto.randomUUID()
     const withId = { ...cmd, id }
 
     const line = JSON.stringify(withId) + '\n'
 
-    return new Promise<PiRpcResponse>((resolve, reject) => {
+    return new Promise<GsdRpcResponse>((resolve, reject) => {
       this.pending.set(id, { resolve, reject })
 
       try {
