@@ -11,6 +11,10 @@ class FakeSessions {
 }
 
 test('GsdAcpAgent: newSession throws AUTH_REQUIRED when gsd reports zero available models', async () => {
+  const prevKey = process.env.OPENAI_API_KEY
+  process.env.OPENAI_API_KEY = 'test-key-for-auth-bypass'
+
+  try {
   const conn = new FakeAgentSideConnection()
 
   const session = {
@@ -44,4 +48,9 @@ test('GsdAcpAgent: newSession throws AUTH_REQUIRED when gsd reports zero availab
 
   assert.equal(threw, true)
   assert.equal((session.proc as any).disposeCalled, 1)
+
+  } finally {
+    if (prevKey === undefined) delete process.env.OPENAI_API_KEY
+    else process.env.OPENAI_API_KEY = prevKey
+  }
 })

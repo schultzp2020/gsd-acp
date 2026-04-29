@@ -12,22 +12,34 @@ Expect some minor breaking changes.
 
 ## Features
 
+- **V2 protocol support** with graceful v1 fallback
+  - Sends `init` handshake with `protocolVersion: 2` on subprocess spawn (5s timeout)
+  - On success: subscribes to all events, uses v2 turn completion (`execution_complete`), cost tracking (`cost_update`), and clean shutdown
+  - On failure: falls back to v1 seamlessly (run tracking and cost updates will be limited)
+- **Steer/follow-up routing** — automatically detects whether the agent is streaming and routes prompts accordingly:
+  - During streaming → `steer` (interrupt/redirect the agent)
+  - After completion with history → `follow_up` (continue the conversation)
+  - First message in session → `prompt`
 - Streams assistant output as ACP `agent_message_chunk`
 - Maps gsd tool execution to ACP `tool_call` / `tool_call_update`
   - Tool call locations are surfaced when available for ACP clients that support opening the referenced file/context
   - Relative file paths from gsd are resolved against the session cwd before being emitted as ACP tool locations, which enables follow-along features in clients like Zed
   - For `edit`, `gsd-acp` attempts to infer a 1-based line number from a unique `oldText` match in the pre-edit file snapshot and includes it in the emitted tool location when possible
   - For `edit`, `gsd-acp` snapshots the file before the tool runs and emits an ACP **structured diff** (`oldText`/`newText`) on completion when possible
+- **Session forking** — `/fork-points` lists conversation fork points, `/fork <entryId>` creates a branched session
+- **Extension UI handling** — interactive extension methods (select, confirm, input, editor) are auto-cancelled with a response; notifications are logged to stderr; status/widget/title methods are silently acknowledged
+- **Auto-retry** — `/auto-retry on|off` toggles automatic retry; toggle without args reads current state
 - Session persistence
-  - gsd stores its own sessions in `~/.gsd/agent/sessions/...`
-  - `gsd-acp` stores a small mapping file at `~/.gsd/gsd-acp/session-map.json` so `session/load` can reattach to a previous gsd session file
+  - gsd stores its own sessions in `~/.gsd/sessions/...`
+  - `gsd-acp` stores a small mapping file at `~/.gsd/gsd-acp/session-map.json` so `session/load` can reattach to a previous session file
+  - `GSD_HOME` environment variable overrides the default home directory
 - Slash commands
   - Loads file-based slash commands compatible with gsd's conventions
   - Adds a small set of built-in commands for headless/editor usage
   - Supports skill commands (if enabled in gsd settings, they appear as `/skill:skill-name` in the ACP client)
 - Skills are loaded by gsd directly and are available in ACP sessions
-- (Zed) `gsd-acp` emits "startup info" block into the session (gsd version, context, skills, prompts, extensions - similar to `gsd` in the terminal). You can disable it by setting `quietStartup: true` in gsd settings (`~/.gsd/agent/settings.json` or `<project>/.gsd/settings.json`). When `quietStartup` is enabled, `gsd-acp` will still emit a 'New version available' message if the installed gsd version is outdated.
-- (Zed) Session history is supported in Zed starting with [`v0.225.0`](https://zed.dev/releases/preview/0.225.0). Session loading / history maps to gsd's session files. Sessions can be resumed both in `gsd` and in the ACP client.
+- (Zed) `gsd-acp` emits “startup info” block into the session (gsd version, context, skills, prompts, extensions - similar to `gsd` in the terminal). You can disable it by setting `quietStartup: true` in gsd settings (`~/.gsd/agent/settings.json` or `<project>/.gsd/settings.json`). When `quietStartup` is enabled, `gsd-acp` will still emit a ‘New version available’ message if the installed gsd version is outdated.
+- (Zed) Session history is supported in Zed starting with [`v0.225.0`](https://zed.dev/releases/preview/0.225.0). Session loading / history maps to gsd’s session files. Sessions can be resumed both in `gsd` and in the ACP client.
 
 ## Prerequisites
 
@@ -148,16 +160,18 @@ Loaded from:
 - `/export` – export the current session to HTML in the session `cwd`
 - `/session` – show session stats (tokens/messages/cost/session file)
 - `/name <name>` – set session display name
-- `/queue all|one-at-a-time` – set gsd queue mode (unstable feature)
 - `/changelog` – print the installed gsd changelog (best-effort)
-- `/steering` - maps to `gsd` Steering Mode, get/set
-- `/follow-up` - pats to `gsd` Follow-up Mode, get/set
+- `/steering` – get/set steering message delivery mode (`all` or `one-at-a-time`)
+- `/follow-up` – get/set follow-up message delivery mode (`all` or `one-at-a-time`)
+- `/fork-points` – list conversation fork points with entry IDs
+- `/fork <entryId>` – fork the session at a specific entry point
+- `/auto-retry on|off` – toggle automatic retry (no args to toggle based on current state)
 
 Other built-in commands:
 
-- `/model` - maps to model selector in Zed
-- `/thinking` - maps to 'mode' selector in Zed
-- `/clear` - not implemented (use ACP client 'new' command)
+- `/model` – maps to model selector in Zed
+- `/thinking` – maps to 'mode' selector in Zed
+- `/clear` – not implemented (use ACP client 'new' command)
 
 #### 3) Skill commands
 
@@ -196,9 +210,9 @@ Project layout:
 
 - No ACP filesystem delegation (`fs/*`) and no ACP terminal delegation (`terminal/*`). gsd reads/writes and executes locally.
 - MCP servers are accepted in ACP params and stored in session state, but not wired through to gsd (see [why](https://mariozechner.at/posts/2025-11-02-what-if-you-dont-need-mcp/)). If you use [gsd MCP adapter](https://github.com/nicobailon/gsd-mcp-adapter) it will be available in the ACP client.
-- Assistant streaming is currently sent as `agent_message_chunk` (no separate thought stream).
-- Queue is implemented client-side and should work like gsd's `one-at-a-time`
-- ~~ACP clients don't yet suport session history, but ACP sessions from `gsd-acp` can be `/resume`d in gsd directly~~
+- Extension UI requests (select, confirm, input, editor) are auto-cancelled since ACP clients don't support them — the agent will see a cancellation and proceed.
+- Queue is implemented client-side and should work like gsd's `one-at-a-time`.
+- V2 protocol features (run tracking, cost updates, steer/follow-up) require a v2-compatible gsd binary. Older binaries fall back to v1 automatically.
 
 ## License
 

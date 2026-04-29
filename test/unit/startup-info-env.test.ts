@@ -12,6 +12,8 @@ class FakeSessions {
 
 test('GsdAcpAgent: quietStartup=true disables startup info generation/emission', async () => {
   const prevAgentDir = process.env.GSD_HOME
+  const prevApiKey = process.env.OPENAI_API_KEY
+  process.env.OPENAI_API_KEY = 'test-key-for-auth-bypass'
 
   // Force quietStartup in gsd settings by pointing GSD_HOME at a temp dir.
   const { mkdtempSync, writeFileSync } = await import('node:fs')
@@ -79,5 +81,7 @@ test('GsdAcpAgent: quietStartup=true disables startup info generation/emission',
     ;(globalThis as any).setTimeout = realSetTimeout
     if (prevAgentDir == null) delete process.env.GSD_HOME
     else process.env.GSD_HOME = prevAgentDir
+    if (prevApiKey === undefined) delete process.env.OPENAI_API_KEY
+    else process.env.OPENAI_API_KEY = prevApiKey
   }
 })

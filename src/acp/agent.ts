@@ -77,6 +77,20 @@ function builtinAvailableCommands(): AvailableCommand[] {
     {
       name: 'changelog',
       description: 'Show gsd changelog'
+    },
+    {
+      name: 'fork-points',
+      description: 'List conversation fork points with entry IDs'
+    },
+    {
+      name: 'fork',
+      description: 'Fork the session at a specific entry point',
+      input: { hint: '<entryId>' }
+    },
+    {
+      name: 'auto-retry',
+      description: 'Toggle automatic retry on/off',
+      input: { hint: 'on|off' }
     }
   ]
 }
@@ -715,6 +729,116 @@ export class GsdAcpAgent implements ACPAgent {
           }
         })
 
+        return { stopReason: 'end_turn' }
+      }
+
+      if (cmd === 'fork-points') {
+        try {
+          const result = await session.proc.getForkMessages()
+          const lines = result.messages.map(
+            (m, i) => `${i + 1}. [${m.entryId}] ${m.text.slice(0, 120)}`
+          )
+          const text = lines.length
+            ? 'Fork points:\n' + lines.join('\n')
+            : 'No fork points available.'
+
+          await this.conn.sessionUpdate({
+            sessionId: session.sessionId,
+            update: {
+              sessionUpdate: 'agent_message_chunk',
+              content: { type: 'text', text }
+            }
+          })
+        } catch (e: unknown) {
+          await this.conn.sessionUpdate({
+            sessionId: session.sessionId,
+            update: {
+              sessionUpdate: 'agent_message_chunk',
+              content: { type: 'text', text: `Failed to get fork points: ${String((e as Error)?.message ?? e)}` }
+            }
+          })
+        }
+        return { stopReason: 'end_turn' }
+      }
+
+      if (cmd === 'fork') {
+        const entryId = args[0]?.trim()
+        if (!entryId) {
+          await this.conn.sessionUpdate({
+            sessionId: session.sessionId,
+            update: {
+              sessionUpdate: 'agent_message_chunk',
+              content: { type: 'text', text: 'Usage: /fork <entryId>\nUse /fork-points to list available entry IDs.' }
+            }
+          })
+          return { stopReason: 'end_turn' }
+        }
+
+        try {
+          const result = await session.proc.fork(entryId)
+          if (result.cancelled) {
+            await this.conn.sessionUpdate({
+              sessionId: session.sessionId,
+              update: {
+                sessionUpdate: 'agent_message_chunk',
+                content: { type: 'text', text: 'Fork cancelled.' }
+              }
+            })
+          } else {
+            await this.conn.sessionUpdate({
+              sessionId: session.sessionId,
+              update: {
+                sessionUpdate: 'agent_message_chunk',
+                content: { type: 'text', text: `Session forked at entry ${entryId}.` }
+              }
+            })
+          }
+        } catch (e: unknown) {
+          await this.conn.sessionUpdate({
+            sessionId: session.sessionId,
+            update: {
+              sessionUpdate: 'agent_message_chunk',
+              content: { type: 'text', text: `Fork failed: ${String((e as Error)?.message ?? e)}` }
+            }
+          })
+        }
+        return { stopReason: 'end_turn' }
+      }
+
+      if (cmd === 'auto-retry') {
+        const modeRaw = (args[0] ?? '').toLowerCase()
+        let enabled: boolean
+
+        if (modeRaw === 'on' || modeRaw === 'true' || modeRaw === 'enable') {
+          enabled = true
+        } else if (modeRaw === 'off' || modeRaw === 'false' || modeRaw === 'disable') {
+          enabled = false
+        } else {
+          // Toggle: read current state
+          const state = (await session.proc.getState()) as { autoRetryEnabled?: boolean }
+          enabled = !state?.autoRetryEnabled
+        }
+
+        try {
+          await session.proc.setAutoRetry(enabled)
+        } catch (e: unknown) {
+          await this.conn.sessionUpdate({
+            sessionId: session.sessionId,
+            update: {
+              sessionUpdate: 'agent_message_chunk',
+              content: { type: 'text', text: `Failed to set auto-retry: ${String((e as Error)?.message ?? e)}` }
+            }
+          })
+          return { stopReason: 'end_turn' }
+        }
+
+        await this.conn.sessionUpdate({
+          sessionId: session.sessionId,
+          update: {
+            sessionUpdate: 'agent_message_chunk',
+            content: { type: 'text', text: `Auto-retry ${enabled ? 'enabled' : 'disabled'}.` }
+          }
+        })
         return { stopReason: 'end_turn' }
       }
 

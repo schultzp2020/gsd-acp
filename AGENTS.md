@@ -11,9 +11,20 @@ This repository implements an **Agent Client Protocol (ACP)** adapter for **gsd*
 
 Gsd RPC mode is effectively single-session, so the adapter maps:
 
-- `session/new` → spawn a dedicated `gsd --mode rpc` process
-- `session/prompt` → send `{type:"prompt"}` to that process and stream events back as `session/update`
+- `session/new` → spawn a dedicated `gsd --mode rpc` process, attempt v2 init handshake (5s timeout, v1 fallback)
+- `session/prompt` → route to `steer` (streaming), `follow_up` (idle with history), or `prompt` (first message) based on agent state
 - `session/cancel` → send `{type:"abort"}`
+
+### V2 Protocol
+
+On spawn, the adapter sends `{type:"init", protocolVersion:2}`. If the subprocess responds within 5s:
+- Protocol version locks to 2
+- Subscribes to all events (`{type:"subscribe", events:["*"]}`)
+- Uses `execution_complete` for turn completion (replaces `agent_end`)
+- Forwards `cost_update` events as ACP `session_info_update` metadata
+- Uses `shutdown` for clean teardown
+
+If init fails or times out, the adapter falls back to v1 silently.
 
 ### ACP server wiring (modeled after opencode)
 
@@ -24,10 +35,12 @@ Use `@agentclientprotocol/sdk`:
 
 ## Implementation constraints / decisions
 
-- Do **not** implement ACP client-side FS/terminal delegation in MVP. Gsd already reads/writes and executes locally.
-- Ignore `mcpServers` for MVP (accept in params, store in session state).
-- Stream all gsd assistant output as ACP `agent_message_chunk` initially.
+- Do **not** implement ACP client-side FS/terminal delegation. Gsd already reads/writes and executes locally.
+- Ignore `mcpServers` (accept in params, store in session state).
+- Stream all gsd assistant output as ACP `agent_message_chunk`.
 - Tool events: map gsd tool execution events to ACP `tool_call` / `tool_call_update` (as text content).
+- Extension UI requests (select, confirm, input, editor) are auto-cancelled; notifications logged to stderr; status/widget/title silently acknowledged.
+- V2 protocol is primary, v1 is fallback (not vice versa). All request timeouts are 30s.
 
 ## Dev workflow (to be filled once scaffold exists)
 

@@ -75,7 +75,8 @@ test('GsdAcpAgent: unstable_listSessions lists gsd sessions and loadSession repl
 
     ;(GsdRpcProcess as any).spawn = async (params: any) => {
       assert.ok(typeof params.sessionPath === 'string')
-      assert.ok(params.sessionPath.includes('0000_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jsonl'))
+      const normalized = params.sessionPath.replace(/\\/g, '/')
+      assert.ok(normalized.endsWith('/0000_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jsonl'))
 
       return {
         onEvent: () => () => {

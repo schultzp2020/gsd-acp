@@ -28,9 +28,16 @@ function stripAnsi(s: string): string {
 }
 
 type GsdRpcCommand =
-  | { type: 'prompt'; id?: string; message: string; images?: unknown[] }
+  | { type: 'prompt'; id?: string; message: string; images?: unknown[]; streamingBehavior?: 'steer' | 'followUp' }
   | { type: 'abort'; id?: string }
   | { type: 'get_state'; id?: string }
+  // V2 protocol
+  | { type: 'init'; id?: string; protocolVersion: 2; clientId?: string }
+  | { type: 'subscribe'; id?: string; events: string[] }
+  | { type: 'shutdown'; id?: string; graceful?: boolean }
+  // Steer / follow-up
+  | { type: 'steer'; id?: string; message: string }
+  | { type: 'follow_up'; id?: string; message: string }
   // Model
   | { type: 'get_available_models'; id?: string }
   | { type: 'set_model'; id?: string; provider: string; modelId: string }
@@ -51,6 +58,15 @@ type GsdRpcCommand =
   | { type: 'get_messages'; id?: string }
   // Commands
   | { type: 'get_commands'; id?: string }
+  // Fork
+  | { type: 'get_fork_messages'; id?: string }
+  | { type: 'fork'; id?: string; entryId: string }
+  // Auto-retry
+  | { type: 'set_auto_retry'; id?: string; enabled: boolean }
+  | { type: 'abort_retry'; id?: string }
+  // New session / misc
+  | { type: 'new_session'; id?: string; parentSession?: string }
+  | { type: 'get_last_assistant_text'; id?: string }
 
 type GsdRpcResponse = {
   type: 'response'
@@ -62,6 +78,9 @@ type GsdRpcResponse = {
 }
 
 export type GsdRpcEvent = Record<string, unknown>
+
+const REQUEST_TIMEOUT_MS = 30_000
+const V2_INIT_TIMEOUT_MS = 5_000
 
 type SpawnParams = {
   cwd: string
@@ -76,6 +95,10 @@ export class GsdRpcProcess {
   private readonly pending = new Map<string, { resolve: (v: GsdRpcResponse) => void; reject: (e: unknown) => void }>()
   private eventHandlers: Array<(ev: GsdRpcEvent) => void> = []
   private readonly preludeLines: string[] = []
+
+  protocolVersion: 1 | 2 = 1
+  v2SessionId: string | null = null
+  v2Capabilities: Record<string, unknown> | null = null
 
   private constructor(child: ChildProcessWithoutNullStreams) {
     this.child = child
@@ -175,26 +198,50 @@ export class GsdRpcProcess {
       throw new GsdRpcSpawnError(`Could not start gsd (command: ${cmd}).`, { code, cause: e })
     }
 
-    child.stderr.on('data', () => {
-      // leave stderr untouched; ACP clients may capture it.
-    })
+    child.stderr.on('data', () => {})
 
     const proc = new GsdRpcProcess(child)
 
-    // Best-effort handshake.
-    // Important: gsd may emit a get_state response pointing at a sessionFile in a directory
-    // that is created lazily. Create the parent dir up-front to avoid later parse errors
-    // when we call commands like export_html.
+    // V2 handshake: send init with protocolVersion:2, wait up to 5s.
+    // On success, subscribe to all events. On failure, fall back to v1 (get_state probe).
     try {
-      const state = (await proc.getState()) as any
-      const sessionFile = typeof state?.sessionFile === 'string' ? state.sessionFile : null
-      if (sessionFile) {
-        const { mkdirSync } = await import('node:fs')
-        const { dirname } = await import('node:path')
-        mkdirSync(dirname(sessionFile), { recursive: true })
+      const initRes = await proc.requestWithTimeout(
+        { type: 'init', protocolVersion: 2 },
+        V2_INIT_TIMEOUT_MS
+      )
+
+      if (initRes.success) {
+        proc.protocolVersion = 2
+        const data = initRes.data as Record<string, unknown> | undefined
+        proc.v2SessionId = typeof data?.sessionId === 'string' ? data.sessionId : null
+        proc.v2Capabilities = (data?.capabilities as Record<string, unknown>) ?? null
+
+        try {
+          await proc.request({ type: 'subscribe', events: ['*'] })
+        } catch {
+          // Non-fatal: we can still function without subscription confirmation.
+        }
+      } else {
+        throw new Error(initRes.error ?? 'init rejected')
       }
     } catch {
-      // ignore for now
+      // V1 fallback.
+      proc.protocolVersion = 1
+      process.stderr.write(
+        '[gsd-acp] v2 init unavailable, falling back to v1. Run tracking and cost updates will be limited.\n'
+      )
+
+      try {
+        const state = (await proc.getState()) as any
+        const sessionFile = typeof state?.sessionFile === 'string' ? state.sessionFile : null
+        if (sessionFile) {
+          const { mkdirSync } = await import('node:fs')
+          const { dirname } = await import('node:path')
+          mkdirSync(dirname(sessionFile), { recursive: true })
+        }
+      } catch {
+        // ignore
+      }
     }
 
     return proc
@@ -314,23 +361,109 @@ export class GsdRpcProcess {
     return res.data
   }
 
+  writeRaw(data: string): void {
+    try {
+      this.child.stdin.write(data)
+    } catch {
+      // ignore
+    }
+  }
+
+  async subscribe(events: string[]): Promise<void> {
+    if (this.protocolVersion < 2) return
+    const res = await this.request({ type: 'subscribe', events })
+    if (!res.success) throw new Error(`gsd subscribe failed: ${res.error ?? JSON.stringify(res.data)}`)
+  }
+
+  async shutdown(graceful?: boolean): Promise<void> {
+    if (this.protocolVersion >= 2) {
+      try {
+        await this.request({ type: 'shutdown', graceful })
+      } catch {
+        // Fall through to SIGTERM if shutdown command fails.
+      }
+      return
+    }
+    this.dispose()
+  }
+
+  async steer(message: string): Promise<void> {
+    const res = await this.request({ type: 'steer', message })
+    if (!res.success) throw new Error(`gsd steer failed: ${res.error ?? JSON.stringify(res.data)}`)
+  }
+
+  async followUp(message: string): Promise<void> {
+    const res = await this.request({ type: 'follow_up', message })
+    if (!res.success) throw new Error(`gsd follow_up failed: ${res.error ?? JSON.stringify(res.data)}`)
+  }
+
+  async getForkMessages(): Promise<{ messages: Array<{ entryId: string; text: string }> }> {
+    const res = await this.request({ type: 'get_fork_messages' })
+    if (!res.success) throw new Error(`gsd get_fork_messages failed: ${res.error ?? JSON.stringify(res.data)}`)
+    const data = res.data as { messages?: Array<{ entryId: string; text: string }> } | undefined
+    return { messages: Array.isArray(data?.messages) ? data.messages : [] }
+  }
+
+  async fork(entryId: string): Promise<{ text: string; cancelled: boolean }> {
+    const res = await this.request({ type: 'fork', entryId })
+    if (!res.success) throw new Error(`gsd fork failed: ${res.error ?? JSON.stringify(res.data)}`)
+    const data = res.data as { text?: string; cancelled?: boolean } | undefined
+    return { text: String(data?.text ?? ''), cancelled: Boolean(data?.cancelled) }
+  }
+
+  async setAutoRetry(enabled: boolean): Promise<void> {
+    const res = await this.request({ type: 'set_auto_retry', enabled })
+    if (!res.success) throw new Error(`gsd set_auto_retry failed: ${res.error ?? JSON.stringify(res.data)}`)
+  }
+
+  async abortRetry(): Promise<void> {
+    const res = await this.request({ type: 'abort_retry' })
+    if (!res.success) throw new Error(`gsd abort_retry failed: ${res.error ?? JSON.stringify(res.data)}`)
+  }
+
+  async newSession(parentSession?: string): Promise<unknown> {
+    const res = await this.request({ type: 'new_session', parentSession })
+    if (!res.success) throw new Error(`gsd new_session failed: ${res.error ?? JSON.stringify(res.data)}`)
+    return res.data
+  }
+
+  async getLastAssistantText(): Promise<string | null> {
+    const res = await this.request({ type: 'get_last_assistant_text' })
+    if (!res.success) throw new Error(`gsd get_last_assistant_text failed: ${res.error ?? JSON.stringify(res.data)}`)
+    const data = res.data as { text?: string | null } | undefined
+    return typeof data?.text === 'string' ? data.text : null
+  }
+
   private request(cmd: GsdRpcCommand): Promise<GsdRpcResponse> {
+    return this.requestWithTimeout(cmd, REQUEST_TIMEOUT_MS)
+  }
+
+  requestWithTimeout(cmd: GsdRpcCommand, timeoutMs: number): Promise<GsdRpcResponse> {
     const id = crypto.randomUUID()
     const withId = { ...cmd, id }
-
     const line = JSON.stringify(withId) + '\n'
 
     return new Promise<GsdRpcResponse>((resolve, reject) => {
-      this.pending.set(id, { resolve, reject })
+      const timer = setTimeout(() => {
+        this.pending.delete(id)
+        reject(new Error(`Request timed out after ${timeoutMs}ms: ${cmd.type}`))
+      }, timeoutMs)
+
+      this.pending.set(id, {
+        resolve: v => { clearTimeout(timer); resolve(v) },
+        reject: e => { clearTimeout(timer); reject(e) }
+      })
 
       try {
         this.child.stdin.write(line, err => {
           if (err) {
+            clearTimeout(timer)
             this.pending.delete(id)
             reject(err)
           }
         })
       } catch (e) {
+        clearTimeout(timer)
         this.pending.delete(id)
         reject(e)
       }

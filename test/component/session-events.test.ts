@@ -125,7 +125,8 @@ test('GsdAcpSession: emits tool locations from gsd path args', async () => {
 
   assert.equal(conn.updates.length, 1)
   assert.equal(conn.updates[0]!.update.sessionUpdate, 'tool_call')
-  assert.deepEqual((conn.updates[0]!.update as any).locations, [{ path: join(process.cwd(), 'src/acp/session.ts') }])
+  const { resolve } = await import('node:path')
+  assert.deepEqual((conn.updates[0]!.update as any).locations, [{ path: resolve(process.cwd(), 'src/acp/session.ts') }])
 })
 
 test('GsdAcpSession: emits agent_message_chunk for auto_retry_start with attempt/maxAttempts and rounded delay', async () => {

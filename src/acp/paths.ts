@@ -1,5 +1,5 @@
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 
 /**
  * Storage owned by the ACP adapter.
@@ -7,6 +7,7 @@ import { join } from 'node:path'
  * We intentionally keep this separate from gsd's own ~/.gsd/agent/* directory.
  */
 export function getGsdAcpDir(): string {
+  if (process.env.GSD_HOME) return join(resolve(process.env.GSD_HOME), 'gsd-acp')
   return join(homedir(), '.gsd', 'gsd-acp')
 }
 

@@ -14,7 +14,8 @@ const DEFAULT_TAIL_BYTES = 256 * 1024
 const DEFAULT_HEAD_BYTES = 64 * 1024
 
 function getGsdAgentDir(): string {
-  return process.env.GSD_HOME ? resolve(process.env.GSD_HOME) : join(homedir(), '.gsd', 'agent')
+  if (process.env.GSD_HOME) return resolve(process.env.GSD_HOME)
+  return join(homedir(), '.gsd', 'agent')
 }
 
 function readSessionDirFromSettings(agentDir: string): string | null {
@@ -36,7 +37,13 @@ function readSessionDirFromSettings(agentDir: string): string | null {
 
 export function getGsdSessionsDir(): string {
   const agentDir = getGsdAgentDir()
-  return readSessionDirFromSettings(agentDir) ?? join(agentDir, 'sessions')
+  const fromSettings = readSessionDirFromSettings(agentDir)
+  if (fromSettings) return fromSettings
+
+  // GSD_HOME layout: sessions live at $GSD_HOME/sessions/ directly.
+  if (process.env.GSD_HOME) return join(resolve(process.env.GSD_HOME), 'sessions')
+
+  return join(agentDir, 'sessions')
 }
 
 function walkJsonlFiles(dir: string, out: string[]) {

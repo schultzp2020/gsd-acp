@@ -195,8 +195,11 @@ export class GsdAcpSession {
   private currentToolCalls = new Map<string, 'pending' | 'in_progress'>()
 
   // gsd can emit multiple `turn_end` events for a single user prompt (e.g. after tool_use).
-  // The overall agent loop completes when `agent_end` is emitted.
+  // The overall agent loop completes when `agent_end` (v1) or `execution_complete` (v2) is emitted.
   private inAgentLoop = false
+
+  // V2 run tracking: correlate execution_complete events back to the prompt that started the run.
+  private activeRunId: string | null = null
 
   // For ACP diff support: capture file contents before edits, then emit ToolCallContent {type:"diff"}.
   // This is due to gsd sending diff as a string as opposed to ACP expected diff format.
@@ -328,22 +331,71 @@ export class GsdAcpSession {
     await this.lastEmit
   }
 
+  private finishTurn(defaultReason: StopReason): void {
+    void this.flushEmits().finally(() => {
+      const reason: StopReason = this.cancelRequested ? 'cancelled' : defaultReason
+      this.pendingTurn?.resolve(reason)
+      this.pendingTurn = null
+      this.inAgentLoop = false
+
+      const next = this.turnQueue.shift()
+      if (next) {
+        this.emit({
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text: `Starting queued message. (${this.turnQueue.length} remaining)` }
+        })
+        this.startTurn(next)
+      } else {
+        this.emit({
+          sessionUpdate: 'session_info_update',
+          _meta: { gsdAcp: { queueDepth: 0, running: false } }
+        })
+      }
+    })
+  }
+
+  private handleExtensionUiRequest(ev: GsdRpcEvent): void {
+    const method = String((ev as any).method ?? '')
+    const requestId = (ev as any).requestId ?? (ev as any).id
+
+    const interactiveMethods = ['select', 'confirm', 'input', 'editor']
+    const silentMethods = ['setStatus', 'setWidget', 'setTitle', 'set_editor_text']
+
+    if (interactiveMethods.includes(method)) {
+      const desc = String((ev as any).description ?? method).slice(0, 80)
+      process.stderr.write(`[gsd-acp] Extension UI '${method}' cancelled (not supported in ACP): ${desc}\n`)
+
+      if (requestId != null) {
+        this.proc.writeRaw(JSON.stringify({ requestId, cancelled: true }) + '\n')
+      }
+      return
+    }
+
+    if (method === 'notify') {
+      const msg = String((ev as any).message ?? (ev as any).description ?? '')
+      process.stderr.write(`[gsd-acp] Extension notification: ${msg}\n`)
+      return
+    }
+
+    if (silentMethods.includes(method)) {
+      return
+    }
+  }
+
   private startTurn(t: QueuedTurn): void {
     this.cancelRequested = false
     this.inAgentLoop = false
+    this.activeRunId = null
 
     this.pendingTurn = { resolve: t.resolve, reject: t.reject }
 
-    // Publish queue depth (0 because we're starting the turn now).
     this.emit({
       sessionUpdate: 'session_info_update',
       _meta: { gsdAcp: { queueDepth: this.turnQueue.length, running: true } }
     })
 
-    // Kick off gsd, but completion is determined by gsd events, not the RPC response.
-    // Important: gsd may emit multiple `turn_end` events (e.g. when the model requests tools).
-    // The full prompt is finished when we see `agent_end`.
-    this.proc.prompt(t.message, t.images).catch(err => {
+    // Route the message based on agent state (v2: steer if streaming, follow_up if idle with history).
+    this.dispatchTurn(t.message, t.images).catch(err => {
       // If the subprocess errors before we get an `agent_end`, treat as error unless cancelled.
       // Also ensure we flush any already-enqueued updates first.
       void this.flushEmits().finally(() => {
@@ -368,6 +420,27 @@ export class GsdAcpSession {
       })
       void err
     })
+  }
+
+  private async dispatchTurn(message: string, images: unknown[]): Promise<void> {
+    if (this.proc.protocolVersion >= 2) {
+      // Use get_state() to determine the correct command type, avoiding races.
+      try {
+        const state = (await this.proc.getState()) as { isStreaming?: boolean; messageCount?: number }
+
+        if (state?.isStreaming) {
+          return this.proc.steer(message)
+        }
+
+        if ((state?.messageCount ?? 0) > 0) {
+          return this.proc.followUp(message)
+        }
+      } catch {
+        // Fall through to prompt on state errors.
+      }
+    }
+
+    return this.proc.prompt(message, images)
   }
 
   private handleGsdEvent(ev: GsdRpcEvent) {
@@ -614,39 +687,68 @@ export class GsdAcpSession {
 
       case 'agent_start': {
         this.inAgentLoop = true
+        // V2: capture runId if present.
+        const runId = typeof (ev as any).runId === 'string' ? (ev as any).runId : null
+        if (runId) this.activeRunId = runId
         break
       }
 
       case 'turn_end': {
-        // gsd uses `turn_end` for sub-steps (e.g. tool_use) and will often start another turn.
-        // Do NOT resolve the ACP `session/prompt` here; wait for `agent_end`.
         break
       }
 
       case 'agent_end': {
-        // Ensure all updates derived from gsd events are delivered before we resolve
-        // the ACP `session/prompt` request.
-        void this.flushEmits().finally(() => {
-          const reason: StopReason = this.cancelRequested ? 'cancelled' : 'end_turn'
-          this.pendingTurn?.resolve(reason)
-          this.pendingTurn = null
-          this.inAgentLoop = false
+        // V1 turn terminator. In v2 mode, execution_complete handles this.
+        if (this.proc.protocolVersion >= 2) break
 
-          // Start next queued prompt, if any.
-          const next = this.turnQueue.shift()
-          if (next) {
-            this.emit({
-              sessionUpdate: 'agent_message_chunk',
-              content: { type: 'text', text: `Starting queued message. (${this.turnQueue.length} remaining)` }
-            })
-            this.startTurn(next)
-          } else {
-            this.emit({
-              sessionUpdate: 'session_info_update',
-              _meta: { gsdAcp: { queueDepth: 0, running: false } }
-            })
-          }
+        void this.finishTurn('end_turn')
+        break
+      }
+
+      case 'execution_complete': {
+        // V2 turn terminator — replaces agent_end.
+        const status = String((ev as any).status ?? 'completed')
+        const stats = (ev as any).stats as Record<string, unknown> | undefined
+
+        if (stats) {
+          this.emit({
+            sessionUpdate: 'session_info_update',
+            _meta: { gsdAcp: { executionStats: stats } }
+          })
+        }
+
+        const reason: StopReason = status === 'cancelled'
+          ? 'cancelled'
+          : status === 'error'
+            ? (this.cancelRequested ? 'cancelled' : 'end_turn')
+            : 'end_turn'
+
+        this.activeRunId = null
+        void this.finishTurn(reason)
+        break
+      }
+
+      case 'cost_update': {
+        const turnCost = (ev as any).turnCost
+        const cumulativeCost = (ev as any).cumulativeCost
+        const tokens = (ev as any).tokens
+
+        this.emit({
+          sessionUpdate: 'session_info_update',
+          _meta: { gsdAcp: { turnCost, cumulativeCost, tokens } }
         })
+        break
+      }
+
+      case 'extension_ui_request': {
+        this.handleExtensionUiRequest(ev)
+        break
+      }
+
+      case 'extensions_ready':
+      case 'extension_error': {
+        const detail = JSON.stringify(ev)
+        process.stderr.write(`[gsd-acp] ${type}: ${detail}\n`)
         break
       }
 
