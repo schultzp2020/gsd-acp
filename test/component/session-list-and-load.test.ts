@@ -8,7 +8,7 @@ import { PiAcpAgent } from '../../src/acp/agent.js'
 import { FakeAgentSideConnection, asAgentConn } from '../helpers/fakes.js'
 
 // We mock PiRpcProcess.spawn so loadSession doesn't actually spawn `pi`.
-import { PiRpcProcess } from '../../src/pi-rpc/process.js'
+import { PiRpcProcess } from '../../src/gsd-rpc/process.js'
 
 test('PiAcpAgent: unstable_listSessions lists pi sessions and loadSession replays history', async () => {
   // Create a fake PI_CODING_AGENT_DIR with one session.

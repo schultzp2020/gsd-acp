@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { listPiSessions } from '../../src/acp/pi-sessions.js'
+import { listPiSessions } from '../../src/acp/gsd-sessions.js'
 
 test('listPiSessions: respects sessionDir from pi settings.json', async () => {
   const root = mkdtempSync(join(tmpdir(), 'pi-acp-test-'))

@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { PiAcpAgent } from '../../src/acp/agent.js'
 import { FakeAgentSideConnection, asAgentConn } from '../helpers/fakes.js'
-import { PiRpcProcess } from '../../src/pi-rpc/process.js'
+import { PiRpcProcess } from '../../src/gsd-rpc/process.js'
 
 class FakeStore {
   get(_sessionId: string) {

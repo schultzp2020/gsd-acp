@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { normalizePiAssistantText, normalizePiMessageText } from '../../src/acp/translate/pi-messages.js'
+import { normalizePiAssistantText, normalizePiMessageText } from '../../src/acp/translate/gsd-messages.js'
 
 test('normalizePiMessageText: supports string', () => {
   assert.equal(normalizePiMessageText('hello'), 'hello')

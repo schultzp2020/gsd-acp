@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { toAvailableCommandsFromPiGetCommands } from '../../src/acp/pi-commands.js'
+import { toAvailableCommandsFromPiGetCommands } from '../../src/acp/gsd-commands.js'
 
 test('toAvailableCommandsFromPiGetCommands: hides extension commands by default and filters skill commands', () => {
   const data = {

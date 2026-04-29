@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { toolResultToText } from '../../src/acp/translate/pi-tools.js'
+import { toolResultToText } from '../../src/acp/translate/gsd-tools.js'
 
 test('toolResultToText: extracts text from content blocks', () => {
   const text = toolResultToText({

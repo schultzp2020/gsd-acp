@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { defaultPiCommand, shouldUseShellForPiCommand } from '../../src/pi-rpc/command.js'
+import { defaultPiCommand, shouldUseShellForPiCommand } from '../../src/gsd-rpc/command.js'
 
 test('defaultPiCommand: uses pi.cmd on Windows and pi elsewhere', () => {
   const originalPlatform = process.platform

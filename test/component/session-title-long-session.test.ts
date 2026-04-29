@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { listPiSessions } from '../../src/acp/pi-sessions.js'
+import { listPiSessions } from '../../src/acp/gsd-sessions.js'
 
 // Ensures we still pick up session_info.name even if it is older than the tail window.
 

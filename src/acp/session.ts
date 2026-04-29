@@ -11,9 +11,9 @@ import { RequestError } from '@agentclientprotocol/sdk'
 import { maybeAuthRequiredError } from './auth-required.js'
 import { readFileSync } from 'node:fs'
 import { isAbsolute, resolve as resolvePath } from 'node:path'
-import { PiRpcProcess, PiRpcSpawnError, type PiRpcEvent } from '../pi-rpc/process.js'
+import { PiRpcProcess, PiRpcSpawnError, type PiRpcEvent } from '../gsd-rpc/process.js'
 import { SessionStore } from './session-store.js'
-import { toolResultToText } from './translate/pi-tools.js'
+import { toolResultToText } from './translate/gsd-tools.js'
 import { expandSlashCommand, type FileSlashCommand } from './slash-commands.js'
 
 type SessionCreateParams = {
