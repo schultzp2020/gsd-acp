@@ -9,7 +9,7 @@ import { listGsdSessions } from '../../src/acp/gsd-sessions.js'
 // Ensures we still pick up session_info.name even if it is older than the tail window.
 
 test('listGsdSessions: finds session_info.name even when it is outside the tail window', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'pi-acp-test-'))
+  const root = mkdtempSync(join(tmpdir(), 'gsd-acp-test-'))
   const sessionsDir = join(root, 'sessions', '--p--')
   mkdirSync(sessionsDir, { recursive: true })
 
@@ -24,15 +24,15 @@ test('listGsdSessions: finds session_info.name even when it is outside the tail 
 
   writeFileSync(sessionFile, [header, info, filler].join('\n') + '\n', { encoding: 'utf8' })
 
-  const oldEnv = process.env.PI_CODING_AGENT_DIR
-  process.env.PI_CODING_AGENT_DIR = root
+  const oldEnv = process.env.GSD_HOME
+  process.env.GSD_HOME = root
 
   try {
     const s = listGsdSessions().find(x => x.sessionId === 'sess-1')
     assert.ok(s)
     assert.equal(s?.title, 'Named Early')
   } finally {
-    if (oldEnv === undefined) delete process.env.PI_CODING_AGENT_DIR
-    else process.env.PI_CODING_AGENT_DIR = oldEnv
+    if (oldEnv === undefined) delete process.env.GSD_HOME
+    else process.env.GSD_HOME = oldEnv
   }
 })

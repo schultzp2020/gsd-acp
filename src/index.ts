@@ -4,7 +4,7 @@ import { getGsdCommand, shouldUseShellForGsdCommand } from './gsd-rpc/command.js
 // Terminal Auth entrypoint. The ACP client launches the agent with `--terminal-login`.
 if (process.argv.includes('--terminal-login')) {
   const { spawnSync } = await import('node:child_process')
-  const cmd = getGsdCommand(process.env.PI_ACP_PI_COMMAND)
+  const cmd = getGsdCommand(process.env.GSD_ACP_GSD_COMMAND)
   const res = spawnSync(cmd, [], {
     stdio: 'inherit',
     env: process.env,
@@ -13,7 +13,7 @@ if (process.argv.includes('--terminal-login')) {
 
   if ((res as any).error && (res as any).error.code === 'ENOENT') {
     process.stderr.write(
-      `pi-acp: could not start pi (command not found: ${cmd}). Install it via \`npm install -g @mariozechner/pi-coding-agent\` or ensure \`pi\` is on your PATH.\n`
+      `gsd-acp: could not start gsd (command not found: ${cmd}). Install it via \`npm install -g gsd-pi\` or ensure \`gsd\` is on your PATH.\n`
     )
     process.exit(1)
   }

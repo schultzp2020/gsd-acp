@@ -6,17 +6,17 @@ import { join } from 'node:path'
 import { GsdAcpAgent } from '../../src/acp/agent.js'
 import { FakeAgentSideConnection, asAgentConn } from '../helpers/fakes.js'
 
-test('GsdAcpAgent: newSession returns a helpful Internal error when pi is not installed', async () => {
-  const prevAgentDir = process.env.PI_CODING_AGENT_DIR
-  const prevPiCmd = process.env.PI_ACP_PI_COMMAND
+test('GsdAcpAgent: newSession returns a helpful Internal error when gsd is not installed', async () => {
+  const prevAgentDir = process.env.GSD_HOME
+  const prevPiCmd = process.env.GSD_ACP_GSD_COMMAND
 
   // Ensure we pass the auth gate so the agent actually tries to spawn pi.
-  const dir = mkdtempSync(join(tmpdir(), 'pi-acp-pi-not-found-'))
+  const dir = mkdtempSync(join(tmpdir(), 'gsd-acp-gsd-not-found-'))
   writeFileSync(join(dir, 'auth.json'), '{"dummy":"x"}', 'utf-8')
   writeFileSync(join(dir, 'models.json'), '{}', 'utf-8')
 
-  process.env.PI_CODING_AGENT_DIR = dir
-  process.env.PI_ACP_PI_COMMAND = 'pi-does-not-exist-12345'
+  process.env.GSD_HOME = dir
+  process.env.GSD_ACP_GSD_COMMAND = 'pi-does-not-exist-12345'
 
   try {
     const conn = new FakeAgentSideConnection()
@@ -27,10 +27,10 @@ test('GsdAcpAgent: newSession returns a helpful Internal error when pi is not in
       (e: any) => e?.code === -32603 && String(e?.message ?? '').toLowerCase().includes('executable not found')
     )
   } finally {
-    if (prevAgentDir == null) delete process.env.PI_CODING_AGENT_DIR
-    else process.env.PI_CODING_AGENT_DIR = prevAgentDir
+    if (prevAgentDir == null) delete process.env.GSD_HOME
+    else process.env.GSD_HOME = prevAgentDir
 
-    if (prevPiCmd == null) delete process.env.PI_ACP_PI_COMMAND
-    else process.env.PI_ACP_PI_COMMAND = prevPiCmd
+    if (prevPiCmd == null) delete process.env.GSD_ACP_GSD_COMMAND
+    else process.env.GSD_ACP_GSD_COMMAND = prevPiCmd
   }
 })

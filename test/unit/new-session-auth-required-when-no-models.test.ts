@@ -10,7 +10,7 @@ class FakeSessions {
   }
 }
 
-test('GsdAcpAgent: newSession throws AUTH_REQUIRED when pi reports zero available models', async () => {
+test('GsdAcpAgent: newSession throws AUTH_REQUIRED when gsd reports zero available models', async () => {
   const conn = new FakeAgentSideConnection()
 
   const session = {

@@ -57,7 +57,7 @@ export function promptToGsdMessage(blocks: ContentBlock[]): {
       case 'audio': {
         // Not supported by pi. Provide a marker so we don't silently drop context.
         const bytes = Buffer.byteLength(b.data, 'base64')
-        message += `\n[Audio] (${b.mimeType}, ${bytes} bytes) not supported by pi-acp`
+        message += `\n[Audio] (${b.mimeType}, ${bytes} bytes) not supported by gsd-acp`
         break
       }
 

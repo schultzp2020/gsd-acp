@@ -1,17 +1,17 @@
-# pi-acp (ACP adapter for pi-coding-agent)
+# gsd-acp (ACP adapter for gsd-pi)
 
-This repository implements an **Agent Client Protocol (ACP)** adapter for **pi** (`@mariozechner/pi-coding-agent`) without modifying pi.
+This repository implements an **Agent Client Protocol (ACP)** adapter for **gsd** (`gsd-pi`) without modifying gsd.
 
 - ACP side: **JSON-RPC 2.0 over stdio** using `@agentclientprotocol/sdk` (TypeScript)
-- Pi side: spawn `pi --mode rpc` and communicate via **newline-delimited JSON** over stdio
+- Gsd side: spawn `gsd --mode rpc` and communicate via **newline-delimited JSON** over stdio
 
 ## Architecture (MVP)
 
-### 1 ACP session ↔ 1 pi subprocess
+### 1 ACP session ↔ 1 gsd subprocess
 
-Pi RPC mode is effectively single-session, so the adapter maps:
+Gsd RPC mode is effectively single-session, so the adapter maps:
 
-- `session/new` → spawn a dedicated `pi --mode rpc` process
+- `session/new` → spawn a dedicated `gsd --mode rpc` process
 - `session/prompt` → send `{type:"prompt"}` to that process and stream events back as `session/update`
 - `session/cancel` → send `{type:"abort"}`
 
@@ -20,14 +20,14 @@ Pi RPC mode is effectively single-session, so the adapter maps:
 Use `@agentclientprotocol/sdk`:
 
 - `ndJsonStream(input, output)` to speak ACP over stdio
-- `new AgentSideConnection((conn) => new PiAcpAgent(conn, config), stream)`
+- `new AgentSideConnection((conn) => new GsdAcpAgent(conn, config), stream)`
 
 ## Implementation constraints / decisions
 
-- Do **not** implement ACP client-side FS/terminal delegation in MVP. Pi already reads/writes and executes locally.
+- Do **not** implement ACP client-side FS/terminal delegation in MVP. Gsd already reads/writes and executes locally.
 - Ignore `mcpServers` for MVP (accept in params, store in session state).
-- Stream all pi assistant output as ACP `agent_message_chunk` initially.
-- Tool events: map pi tool execution events to ACP `tool_call` / `tool_call_update` (as text content).
+- Stream all gsd assistant output as ACP `agent_message_chunk` initially.
+- Tool events: map gsd tool execution events to ACP `tool_call` / `tool_call_update` (as text content).
 
 ## Dev workflow (to be filled once scaffold exists)
 
@@ -54,8 +54,8 @@ For real validation, test with an ACP client (e.g. Zed external agent).
 ## Coding guidelines
 
 - Keep ACP protocol handling in `src/acp/*`.
-- Keep pi RPC subprocess logic in `src/pi-rpc/*`.
-- Prefer small translation functions (pi event → ACP session/update) with unit tests.
+- Keep gsd RPC subprocess logic in `src/gsd-rpc/*`.
+- Prefer small translation functions (gsd event → ACP session/update) with unit tests.
 - Be strict about streaming and process cleanup (handle exit, drain stdout/stderr, timeouts).
 - Avoid producing unnecessary comments! Use comments sparingly to explain non-obvious decisions, not to narrate code.
 - Avoid using `any` in TypeScript; prefer explicit types and interfaces. Only use `any` when absolutely necessary (e.g. for untyped external data).

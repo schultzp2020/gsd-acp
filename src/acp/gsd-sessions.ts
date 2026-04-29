@@ -14,9 +14,7 @@ const DEFAULT_TAIL_BYTES = 256 * 1024
 const DEFAULT_HEAD_BYTES = 64 * 1024
 
 function getGsdAgentDir(): string {
-  // pi supports overriding config dir via PI_CODING_AGENT_DIR.
-  // See pi README.
-  return process.env.PI_CODING_AGENT_DIR ? resolve(process.env.PI_CODING_AGENT_DIR) : join(homedir(), '.pi', 'agent')
+  return process.env.GSD_HOME ? resolve(process.env.GSD_HOME) : join(homedir(), '.gsd', 'agent')
 }
 
 function readSessionDirFromSettings(agentDir: string): string | null {
@@ -189,7 +187,7 @@ function scanSessionInfoNameFromFile(path: string): string | null {
 }
 
 function pickUpdatedAtFromTail(tail: string): string | null {
-  // pi's `/resume` effectively orders sessions by last *message* activity.
+  // gsd's `/resume` effectively orders sessions by last *message* activity.
   // We scan backwards and pick the timestamp of the most recent entry with type === "message".
   const lines = tail.split(/\r?\n/)
 

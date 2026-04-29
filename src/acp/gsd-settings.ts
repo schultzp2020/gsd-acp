@@ -29,7 +29,7 @@ function readJsonFile(path: string): Record<string, unknown> {
 
 function getMergedSettings(cwd: string): Record<string, unknown> {
   const globalSettingsPath = join(getAgentDir(), 'settings.json')
-  const projectSettingsPath = resolve(cwd, '.pi', 'settings.json')
+  const projectSettingsPath = resolve(cwd, '.gsd', 'settings.json')
 
   const global = readJsonFile(globalSettingsPath)
   const project = readJsonFile(projectSettingsPath)
@@ -37,11 +37,11 @@ function getMergedSettings(cwd: string): Record<string, unknown> {
 }
 
 export function getAgentDir(): string {
-  return process.env.PI_CODING_AGENT_DIR ? resolve(process.env.PI_CODING_AGENT_DIR) : join(homedir(), '.pi', 'agent')
+  return process.env.GSD_HOME ? resolve(process.env.GSD_HOME) : join(homedir(), '.gsd', 'agent')
 }
 
 /**
- * Mirror pi settings semantics (global + project merge, project overrides global).
+ * Mirror gsd settings semantics (global + project merge, project overrides global).
  * Only returns the bits we currently need.
  */
 export function getEnableSkillCommands(cwd: string): boolean {
@@ -58,7 +58,7 @@ export function getEnableSkillCommands(cwd: string): boolean {
 }
 
 /**
- * Mirror pi's quietStartup setting: if true, pi suppresses the verbose startup prelude.
+ * Mirror gsd's quietStartup setting: if true, gsd suppresses the verbose startup prelude.
  * We use it to decide whether to synthesize + emit our own "startup info" message.
  */
 export function getQuietStartup(cwd: string): boolean {

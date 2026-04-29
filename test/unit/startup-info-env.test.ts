@@ -11,15 +11,15 @@ class FakeSessions {
 }
 
 test('GsdAcpAgent: quietStartup=true disables startup info generation/emission', async () => {
-  const prevAgentDir = process.env.PI_CODING_AGENT_DIR
+  const prevAgentDir = process.env.GSD_HOME
 
-  // Force quietStartup in pi settings by pointing PI_CODING_AGENT_DIR at a temp dir.
+  // Force quietStartup in gsd settings by pointing GSD_HOME at a temp dir.
   const { mkdtempSync, writeFileSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const { join } = await import('node:path')
-  const dir = mkdtempSync(join(tmpdir(), 'pi-acp-quietstartup-'))
+  const dir = mkdtempSync(join(tmpdir(), 'gsd-acp-quietstartup-'))
   writeFileSync(join(dir, 'settings.json'), JSON.stringify({ quietStartup: true }, null, 2), 'utf-8')
-  process.env.PI_CODING_AGENT_DIR = dir
+  process.env.GSD_HOME = dir
 
   // Spy on setTimeout calls (agent schedules startup info + available commands)
   const realSetTimeout = globalThis.setTimeout
@@ -75,7 +75,7 @@ test('GsdAcpAgent: quietStartup=true disables startup info generation/emission',
     }
   } finally {
     ;(globalThis as any).setTimeout = realSetTimeout
-    if (prevAgentDir == null) delete process.env.PI_CODING_AGENT_DIR
-    else process.env.PI_CODING_AGENT_DIR = prevAgentDir
+    if (prevAgentDir == null) delete process.env.GSD_HOME
+    else process.env.GSD_HOME = prevAgentDir
   }
 })

@@ -11,7 +11,7 @@ test('GsdAcpSession: emits ACP diff content for edit tool when file changes', as
   const conn = new FakeAgentSideConnection()
   const proc = new FakeGsdRpcProcess()
 
-  const dir = mkdtempSync(join(tmpdir(), 'pi-acp-diff-'))
+  const dir = mkdtempSync(join(tmpdir(), 'gsd-acp-diff-'))
   mkdirSync(dir, { recursive: true })
   const filePath = join(dir, 'a.txt')
   writeFileSync(filePath, 'before\n', 'utf8')

@@ -12,7 +12,7 @@ test('getAuthMethods: includes Zed terminal-auth metadata when enabled', () => {
   assert.ok(m._meta['terminal-auth'])
   assert.ok(typeof m._meta['terminal-auth'].command === 'string')
   assert.deepEqual(m._meta['terminal-auth'].args, ['--terminal-login'])
-  assert.equal(m._meta['terminal-auth'].label, 'Launch pi')
+  assert.equal(m._meta['terminal-auth'].label, 'Launch gsd')
 })
 
 test('getAuthMethods: omits Zed terminal-auth metadata when disabled', () => {

@@ -100,8 +100,8 @@ export class SessionManager {
   }
 
   async create(params: SessionCreateParams): Promise<GsdAcpSession> {
-    // Let pi manage session persistence in its default location (~/.pi/agent/sessions/...)
-    // so sessions are visible to the regular `pi` CLI.
+    // Let gsd manage session persistence in its default location (~/.gsd/sessions/...)
+    // so sessions are visible to the regular `gsd` CLI.
     let proc: GsdRpcProcess
     try {
       proc = await GsdRpcProcess.spawn({

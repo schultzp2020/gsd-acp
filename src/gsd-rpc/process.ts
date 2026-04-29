@@ -65,9 +65,9 @@ export type GsdRpcEvent = Record<string, unknown>
 
 type SpawnParams = {
   cwd: string
-  /** Optional override for `pi` executable name/path */
+  /** Optional override for `gsd` executable name/path */
   piCommand?: string
-  /** If set, pi will persist the session to this exact file (via `--session <path>`). */
+  /** If set, gsd will persist the session to this exact file (via `--session <path>`). */
   sessionPath?: string
 }
 
@@ -87,7 +87,7 @@ export class GsdRpcProcess {
       try {
         msg = JSON.parse(line)
       } catch {
-        // pi may emit a human-readable prelude on stdout before NDJSON starts.
+        // gsd may emit a human-readable prelude on stdout before NDJSON starts.
         // Capture it so the ACP adapter can surface it on session start.
         const cleaned = stripAnsi(String(line)).trimEnd()
         if (cleaned) this.preludeLines.push(cleaned)
@@ -110,7 +110,7 @@ export class GsdRpcProcess {
     })
 
     child.on('exit', (code, signal) => {
-      const err = new Error(`pi process exited (code=${code}, signal=${signal})`)
+      const err = new Error(`gsd process exited (code=${code}, signal=${signal})`)
       for (const [, p] of this.pending) p.reject(err)
       this.pending.clear()
     })
@@ -122,7 +122,7 @@ export class GsdRpcProcess {
   }
 
   static async spawn(params: SpawnParams): Promise<GsdRpcProcess> {
-    // On Windows, npm commonly creates pi.cmd / pi.bat launcher scripts.
+    // On Windows, npm commonly creates gsd.cmd / gsd.bat launcher scripts.
     const cmd = getGsdCommand(params.piCommand)
 
     // Speed/robustness for ACP:
@@ -139,7 +139,7 @@ export class GsdRpcProcess {
       shell: shouldUseShellForGsdCommand(cmd)
     })
 
-    // Ensure spawn failures (e.g. ENOENT when pi isn't installed) are surfaced as a
+    // Ensure spawn failures (e.g. ENOENT when gsd isn't installed) are surfaced as a
     // deterministic error instead of later EPIPE/internal-error noise.
     try {
       await new Promise<void>((resolve, reject) => {
@@ -163,16 +163,16 @@ export class GsdRpcProcess {
       const code = typeof e?.code === 'string' ? e.code : undefined
       if (code === 'ENOENT') {
         throw new GsdRpcSpawnError(
-          `Could not start pi: executable not found (command: ${cmd}). Pi needs to be installed before it can run in ACP clients. Install it via \`npm install -g @mariozechner/pi-coding-agent\` or ensure \`pi\` is on your PATH. Then try again.`,
+          `Could not start gsd: executable not found (command: ${cmd}). gsd-pi needs to be installed before it can run in ACP clients. Install it via \`npm install -g gsd-pi\` or ensure \`gsd\` is on your PATH. Then try again.`,
           { code, cause: e }
         )
       }
 
       if (code === 'EACCES') {
-        throw new GsdRpcSpawnError(`Could not start pi: permission denied (command: ${cmd}).`, { code, cause: e })
+        throw new GsdRpcSpawnError(`Could not start gsd: permission denied (command: ${cmd}).`, { code, cause: e })
       }
 
-      throw new GsdRpcSpawnError(`Could not start pi (command: ${cmd}).`, { code, cause: e })
+      throw new GsdRpcSpawnError(`Could not start gsd (command: ${cmd}).`, { code, cause: e })
     }
 
     child.stderr.on('data', () => {
@@ -182,7 +182,7 @@ export class GsdRpcProcess {
     const proc = new GsdRpcProcess(child)
 
     // Best-effort handshake.
-    // Important: pi may emit a get_state response pointing at a sessionFile in a directory
+    // Important: gsd may emit a get_state response pointing at a sessionFile in a directory
     // that is created lazily. Create the parent dir up-front to avoid later parse errors
     // when we call commands like export_html.
     try {
@@ -227,90 +227,90 @@ export class GsdRpcProcess {
 
   async prompt(message: string, images: unknown[] = []): Promise<void> {
     const res = await this.request({ type: 'prompt', message, images })
-    if (!res.success) throw new Error(`pi prompt failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd prompt failed: ${res.error ?? JSON.stringify(res.data)}`)
   }
 
   async abort(): Promise<void> {
     const res = await this.request({ type: 'abort' })
-    if (!res.success) throw new Error(`pi abort failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd abort failed: ${res.error ?? JSON.stringify(res.data)}`)
   }
 
   async getState(): Promise<unknown> {
     const res = await this.request({ type: 'get_state' })
-    if (!res.success) throw new Error(`pi get_state failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd get_state failed: ${res.error ?? JSON.stringify(res.data)}`)
     return res.data
   }
 
   async getAvailableModels(): Promise<unknown> {
     const res = await this.request({ type: 'get_available_models' })
-    if (!res.success) throw new Error(`pi get_available_models failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd get_available_models failed: ${res.error ?? JSON.stringify(res.data)}`)
     return res.data
   }
 
   async setModel(provider: string, modelId: string): Promise<unknown> {
     const res = await this.request({ type: 'set_model', provider, modelId })
-    if (!res.success) throw new Error(`pi set_model failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd set_model failed: ${res.error ?? JSON.stringify(res.data)}`)
     return res.data
   }
 
   async setThinkingLevel(level: 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'): Promise<void> {
     const res = await this.request({ type: 'set_thinking_level', level })
-    if (!res.success) throw new Error(`pi set_thinking_level failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd set_thinking_level failed: ${res.error ?? JSON.stringify(res.data)}`)
   }
 
   async setFollowUpMode(mode: 'all' | 'one-at-a-time'): Promise<void> {
     const res = await this.request({ type: 'set_follow_up_mode', mode })
-    if (!res.success) throw new Error(`pi set_follow_up_mode failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd set_follow_up_mode failed: ${res.error ?? JSON.stringify(res.data)}`)
   }
 
   async setSteeringMode(mode: 'all' | 'one-at-a-time'): Promise<void> {
     const res = await this.request({ type: 'set_steering_mode', mode })
-    if (!res.success) throw new Error(`pi set_steering_mode failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd set_steering_mode failed: ${res.error ?? JSON.stringify(res.data)}`)
   }
 
   async compact(customInstructions?: string): Promise<unknown> {
     const res = await this.request({ type: 'compact', customInstructions })
-    if (!res.success) throw new Error(`pi compact failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd compact failed: ${res.error ?? JSON.stringify(res.data)}`)
     return res.data
   }
 
   async setAutoCompaction(enabled: boolean): Promise<void> {
     const res = await this.request({ type: 'set_auto_compaction', enabled })
-    if (!res.success) throw new Error(`pi set_auto_compaction failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd set_auto_compaction failed: ${res.error ?? JSON.stringify(res.data)}`)
   }
 
   async getSessionStats(): Promise<unknown> {
     const res = await this.request({ type: 'get_session_stats' })
-    if (!res.success) throw new Error(`pi get_session_stats failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd get_session_stats failed: ${res.error ?? JSON.stringify(res.data)}`)
     return res.data
   }
 
   async setSessionName(name: string): Promise<void> {
     const res = await this.request({ type: 'set_session_name', name })
-    if (!res.success) throw new Error(`pi set_session_name failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd set_session_name failed: ${res.error ?? JSON.stringify(res.data)}`)
   }
 
   async exportHtml(outputPath?: string): Promise<{ path: string }> {
     const res = await this.request({ type: 'export_html', outputPath })
-    if (!res.success) throw new Error(`pi export_html failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd export_html failed: ${res.error ?? JSON.stringify(res.data)}`)
     const data: any = res.data
     return { path: String(data?.path ?? '') }
   }
 
   async switchSession(sessionPath: string): Promise<void> {
     const res = await this.request({ type: 'switch_session', sessionPath })
-    if (!res.success) throw new Error(`pi switch_session failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd switch_session failed: ${res.error ?? JSON.stringify(res.data)}`)
   }
 
   async getMessages(): Promise<unknown> {
     const res = await this.request({ type: 'get_messages' })
-    if (!res.success) throw new Error(`pi get_messages failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd get_messages failed: ${res.error ?? JSON.stringify(res.data)}`)
     return res.data
   }
 
   async getCommands(): Promise<unknown> {
     const res = await this.request({ type: 'get_commands' })
-    if (!res.success) throw new Error(`pi get_commands failed: ${res.error ?? JSON.stringify(res.data)}`)
+    if (!res.success) throw new Error(`gsd get_commands failed: ${res.error ?? JSON.stringify(res.data)}`)
     return res.data
   }
 

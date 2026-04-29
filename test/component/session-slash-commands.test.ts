@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { GsdAcpSession } from '../../src/acp/session.js'
 import { FakeAgentSideConnection, FakeGsdRpcProcess, asAgentConn } from '../helpers/fakes.js'
 
-test('GsdAcpSession: expands /command before sending to pi', async () => {
+test('GsdAcpSession: expands /command before sending to gsd', async () => {
   const conn = new FakeAgentSideConnection()
   const proc = new FakeGsdRpcProcess()
 

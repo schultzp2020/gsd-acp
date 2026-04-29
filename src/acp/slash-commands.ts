@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path'
 import type { AvailableCommand } from '@agentclientprotocol/sdk'
 
 /**
- * File-based slash command (mirrors pi-coding-agent semantics).
+ * File-based slash command (mirrors gsd-pi semantics).
  */
 export type FileSlashCommand = {
   name: string
@@ -91,17 +91,17 @@ function loadCommandsFromDir(dir: string, source: 'user' | 'project', subdir = '
 }
 
 /**
- * Load prompt templates from pi's prompt directories (formerly "commands").
- *  - user:    ~/.pi/agent/prompts/**\/*.md
- *  - project: <cwd>/.pi/prompts/**\/*.md
+ * Load prompt templates from gsd's prompt directories (formerly "commands").
+ *  - user:    ~/.gsd/agent/prompts/**\/*.md
+ *  - project: <cwd>/.gsd/prompts/**\/*.md
  */
 export function loadSlashCommands(cwd: string): FileSlashCommand[] {
   const commands: FileSlashCommand[] = []
 
-  const userDir = join(homedir(), '.pi', 'agent', 'prompts')
-  const projectDir = resolve(cwd, '.pi', 'prompts')
+  const userDir = join(homedir(), '.gsd', 'agent', 'prompts')
+  const projectDir = resolve(cwd, '.gsd', 'prompts')
 
-  // Match pi ordering: user first, then project.
+  // Match gsd ordering: user first, then project.
   commands.push(...loadCommandsFromDir(userDir, 'user'))
   commands.push(...loadCommandsFromDir(projectDir, 'project'))
 

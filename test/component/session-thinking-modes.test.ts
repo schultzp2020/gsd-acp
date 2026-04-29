@@ -9,7 +9,7 @@ class FakeConn {
   }
 }
 
-test('GsdAcpAgent: setSessionMode maps to pi setThinkingLevel + emits current_mode_update', async () => {
+test('GsdAcpAgent: setSessionMode maps to gsd setThinkingLevel + emits current_mode_update', async () => {
   const conn = new FakeConn()
   const agent = new GsdAcpAgent(conn as any)
 

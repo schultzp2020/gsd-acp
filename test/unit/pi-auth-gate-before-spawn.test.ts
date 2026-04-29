@@ -12,9 +12,9 @@ class FakeSessions {
   }
 }
 
-test('GsdAcpAgent: newSession returns AUTH_REQUIRED without spawning pi when no auth configured', async () => {
-  const prev = process.env.PI_CODING_AGENT_DIR
-  const dir = mkdtempSync(join(tmpdir(), 'pi-acp-auth-'))
+test('GsdAcpAgent: newSession returns AUTH_REQUIRED without spawning gsd when no auth configured', async () => {
+  const prev = process.env.GSD_HOME
+  const dir = mkdtempSync(join(tmpdir(), 'gsd-acp-auth-'))
 
   // Create empty auth/models files in a temp agent dir.
   writeFileSync(join(dir, 'auth.json'), '{}', 'utf-8')
@@ -28,7 +28,7 @@ test('GsdAcpAgent: newSession returns AUTH_REQUIRED without spawning pi when no 
     delete process.env[k]
   }
 
-  process.env.PI_CODING_AGENT_DIR = dir
+  process.env.GSD_HOME = dir
 
   try {
     const conn = new FakeAgentSideConnection()
@@ -40,8 +40,8 @@ test('GsdAcpAgent: newSession returns AUTH_REQUIRED without spawning pi when no 
       (e: any) => e?.code === -32000
     )
   } finally {
-    if (prev == null) delete process.env.PI_CODING_AGENT_DIR
-    else process.env.PI_CODING_AGENT_DIR = prev
+    if (prev == null) delete process.env.GSD_HOME
+    else process.env.GSD_HOME = prev
 
     for (const k of keys) {
       if (savedEnv[k] == null) delete process.env[k]

@@ -10,9 +10,9 @@ import { FakeAgentSideConnection, asAgentConn } from '../helpers/fakes.js'
 // We mock GsdRpcProcess.spawn so loadSession doesn't actually spawn `pi`.
 import { GsdRpcProcess } from '../../src/gsd-rpc/process.js'
 
-test('GsdAcpAgent: unstable_listSessions lists pi sessions and loadSession replays history', async () => {
-  // Create a fake PI_CODING_AGENT_DIR with one session.
-  const root = mkdtempSync(join(tmpdir(), 'pi-acp-test-'))
+test('GsdAcpAgent: unstable_listSessions lists gsd sessions and loadSession replays history', async () => {
+  // Create a fake GSD_HOME with one session.
+  const root = mkdtempSync(join(tmpdir(), 'gsd-acp-test-'))
   const sessionsDir = join(root, 'sessions', '--tmp--project--')
   const sessionFile = join(sessionsDir, '0000_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jsonl')
 
@@ -54,8 +54,8 @@ test('GsdAcpAgent: unstable_listSessions lists pi sessions and loadSession repla
     { encoding: 'utf8' }
   )
 
-  const oldEnv = process.env.PI_CODING_AGENT_DIR
-  process.env.PI_CODING_AGENT_DIR = root
+  const oldEnv = process.env.GSD_HOME
+  process.env.GSD_HOME = root
 
   try {
     const conn = new FakeAgentSideConnection()
@@ -108,7 +108,7 @@ test('GsdAcpAgent: unstable_listSessions lists pi sessions and loadSession repla
       GsdRpcProcess.spawn = originalSpawn
     }
   } finally {
-    if (oldEnv === undefined) delete process.env.PI_CODING_AGENT_DIR
-    else process.env.PI_CODING_AGENT_DIR = oldEnv
+    if (oldEnv === undefined) delete process.env.GSD_HOME
+    else process.env.GSD_HOME = oldEnv
   }
 })

@@ -52,11 +52,11 @@ test('promptToGsdMessage: includes audio as marker', () => {
 
   const { message, images } = promptToGsdMessage([{ type: 'audio', mimeType: 'audio/wav', data }] as any)
 
-  assert.equal(message, '\n[Audio] (audio/wav, 3 bytes) not supported by pi-acp')
+  assert.equal(message, '\n[Audio] (audio/wav, 3 bytes) not supported by gsd-acp')
   assert.deepEqual(images, [])
 })
 
-test('promptToGsdMessage: maps image to pi image content', () => {
+test('promptToGsdMessage: maps image to gsd image content', () => {
   const base64 = Buffer.from('abc', 'utf8').toString('base64')
 
   const { message, images } = promptToGsdMessage([

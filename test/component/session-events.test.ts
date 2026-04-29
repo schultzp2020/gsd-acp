@@ -106,7 +106,7 @@ test('GsdAcpSession: emits tool_call + tool_call_update + completes', async () =
   assert.equal((conn.updates[2]!.update as any).status, 'completed')
 })
 
-test('GsdAcpSession: emits tool locations from pi path args', async () => {
+test('GsdAcpSession: emits tool locations from gsd path args', async () => {
   const conn = new FakeAgentSideConnection()
   const proc = new FakeGsdRpcProcess()
 
@@ -336,7 +336,7 @@ test('GsdAcpSession: preserves ordering when auto_retry_start is interleaved wit
   )
 })
 
-test('GsdAcpSession: emits streamed tool locations from pi path args', async () => {
+test('GsdAcpSession: emits streamed tool locations from gsd path args', async () => {
   const conn = new FakeAgentSideConnection()
   const proc = new FakeGsdRpcProcess()
 
@@ -371,7 +371,7 @@ test('GsdAcpSession: emits streamed tool locations from pi path args', async () 
 test('GsdAcpSession: emits edit tool line when oldText matches uniquely', async () => {
   const conn = new FakeAgentSideConnection()
   const proc = new FakeGsdRpcProcess()
-  const cwd = mkdtempSync(join(tmpdir(), 'pi-acp-lines-'))
+  const cwd = mkdtempSync(join(tmpdir(), 'gsd-acp-lines-'))
   const filePath = join(cwd, 'a.txt')
 
   mkdirSync(cwd, { recursive: true })
@@ -403,7 +403,7 @@ test('GsdAcpSession: emits edit tool line when oldText matches uniquely', async 
 test('GsdAcpSession: omits edit tool line when oldText matches multiple times', async () => {
   const conn = new FakeAgentSideConnection()
   const proc = new FakeGsdRpcProcess()
-  const cwd = mkdtempSync(join(tmpdir(), 'pi-acp-lines-dup-'))
+  const cwd = mkdtempSync(join(tmpdir(), 'gsd-acp-lines-dup-'))
   const filePath = join(cwd, 'a.txt')
 
   mkdirSync(cwd, { recursive: true })
@@ -544,7 +544,7 @@ test('GsdAcpSession: cancel clears queued prompts', async () => {
   assert.equal(r2, 'cancelled')
 })
 
-test('GsdAcpSession: expands /command before sending to pi', async () => {
+test('GsdAcpSession: expands /command before sending to gsd', async () => {
   const conn = new FakeAgentSideConnection()
   const proc = new FakeGsdRpcProcess()
 

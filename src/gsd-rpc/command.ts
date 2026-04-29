@@ -1,7 +1,7 @@
 import { platform } from 'node:os'
 
 export function defaultGsdCommand(): string {
-  return platform() === 'win32' ? 'pi.cmd' : 'pi'
+  return platform() === 'win32' ? 'gsd.cmd' : 'gsd'
 }
 
 export function getGsdCommand(override?: string): string {
