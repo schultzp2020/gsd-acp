@@ -123,7 +123,7 @@ export function toAvailableCommands(fileCommands: FileSlashCommand[]): Available
     out.push({
       name: c.name,
       description: c.description
-      // input: omitted for now (pi commands don't specify this)
+      // input: omitted for now (gsd commands don't specify this)
     })
   }
 

@@ -19,6 +19,8 @@ test('GsdAcpAgent: quietStartup=true disables startup info generation/emission',
   const { join } = await import('node:path')
   const dir = mkdtempSync(join(tmpdir(), 'gsd-acp-quietstartup-'))
   writeFileSync(join(dir, 'settings.json'), JSON.stringify({ quietStartup: true }, null, 2), 'utf-8')
+  writeFileSync(join(dir, 'auth.json'), '{"dummy":"x"}', 'utf-8')
+  writeFileSync(join(dir, 'models.json'), '{}', 'utf-8')
   process.env.GSD_HOME = dir
 
   // Spy on setTimeout calls (agent schedules startup info + available commands)
@@ -60,7 +62,7 @@ test('GsdAcpAgent: quietStartup=true disables startup info generation/emission',
 
     const res = await agent.newSession({ cwd: process.cwd(), mcpServers: [] } as any)
 
-    const startupInfo = res?._meta?.piAcp?.startupInfo ?? null
+    const startupInfo = res?._meta?.gsdAcp?.startupInfo ?? null
 
     // When quietStartup=true the full prelude is suppressed. However, an update notice
     // (if one exists) is still surfaced because it's high-signal and actionable.

@@ -66,7 +66,7 @@ export type GsdRpcEvent = Record<string, unknown>
 type SpawnParams = {
   cwd: string
   /** Optional override for `gsd` executable name/path */
-  piCommand?: string
+  gsdCommand?: string
   /** If set, gsd will persist the session to this exact file (via `--session <path>`). */
   sessionPath?: string
 }
@@ -123,7 +123,7 @@ export class GsdRpcProcess {
 
   static async spawn(params: SpawnParams): Promise<GsdRpcProcess> {
     // On Windows, npm commonly creates gsd.cmd / gsd.bat launcher scripts.
-    const cmd = getGsdCommand(params.piCommand)
+    const cmd = getGsdCommand(params.gsdCommand)
 
     // Speed/robustness for ACP:
     // - themes are irrelevant in rpc mode and can be noisy/slow to load.

@@ -8,15 +8,14 @@ import { FakeAgentSideConnection, asAgentConn } from '../helpers/fakes.js'
 
 test('GsdAcpAgent: newSession returns a helpful Internal error when gsd is not installed', async () => {
   const prevAgentDir = process.env.GSD_HOME
-  const prevPiCmd = process.env.GSD_ACP_GSD_COMMAND
+  const prevGsdCmd = process.env.GSD_ACP_GSD_COMMAND
 
-  // Ensure we pass the auth gate so the agent actually tries to spawn pi.
   const dir = mkdtempSync(join(tmpdir(), 'gsd-acp-gsd-not-found-'))
   writeFileSync(join(dir, 'auth.json'), '{"dummy":"x"}', 'utf-8')
   writeFileSync(join(dir, 'models.json'), '{}', 'utf-8')
 
   process.env.GSD_HOME = dir
-  process.env.GSD_ACP_GSD_COMMAND = 'pi-does-not-exist-12345'
+  process.env.GSD_ACP_GSD_COMMAND = 'gsd-does-not-exist-12345'
 
   try {
     const conn = new FakeAgentSideConnection()
@@ -30,7 +29,7 @@ test('GsdAcpAgent: newSession returns a helpful Internal error when gsd is not i
     if (prevAgentDir == null) delete process.env.GSD_HOME
     else process.env.GSD_HOME = prevAgentDir
 
-    if (prevPiCmd == null) delete process.env.GSD_ACP_GSD_COMMAND
-    else process.env.GSD_ACP_GSD_COMMAND = prevPiCmd
+    if (prevGsdCmd == null) delete process.env.GSD_ACP_GSD_COMMAND
+    else process.env.GSD_ACP_GSD_COMMAND = prevGsdCmd
   }
 })

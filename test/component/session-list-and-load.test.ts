@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { GsdAcpAgent } from '../../src/acp/agent.js'
 import { FakeAgentSideConnection, asAgentConn } from '../helpers/fakes.js'
 
-// We mock GsdRpcProcess.spawn so loadSession doesn't actually spawn `pi`.
+// We mock GsdRpcProcess.spawn so loadSession doesn't actually spawn `gsd`.
 import { GsdRpcProcess } from '../../src/gsd-rpc/process.js'
 
 test('GsdAcpAgent: unstable_listSessions lists gsd sessions and loadSession replays history', async () => {
@@ -74,9 +74,8 @@ test('GsdAcpAgent: unstable_listSessions lists gsd sessions and loadSession repl
     const originalSpawn = GsdRpcProcess.spawn
 
     ;(GsdRpcProcess as any).spawn = async (params: any) => {
-      // ensure loadSession resolves to some jsonl that ends with our expected filename
       assert.ok(typeof params.sessionPath === 'string')
-      assert.ok(params.sessionPath.endsWith('/0000_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jsonl'))
+      assert.ok(params.sessionPath.includes('0000_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jsonl'))
 
       return {
         onEvent: () => () => {

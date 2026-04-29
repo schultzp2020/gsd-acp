@@ -175,7 +175,7 @@ export class GsdAcpAgent implements ACPAgent {
       mcpServers: params.mcpServers,
       conn: this.conn,
       fileCommands,
-      piCommand: process.env.GSD_ACP_GSD_COMMAND
+      gsdCommand: process.env.GSD_ACP_GSD_COMMAND
     })
 
     // Fetch state + models once (parallel) to reduce startup latency.
@@ -249,7 +249,7 @@ export class GsdAcpAgent implements ACPAgent {
       models,
       modes: thinking,
       _meta: {
-        piAcp: {
+        gsdAcp: {
           startupInfo: preludeText || null
         }
       }
@@ -265,8 +265,8 @@ export class GsdAcpAgent implements ACPAgent {
     setTimeout(() => {
       void (async () => {
         try {
-          const pi = (await session.proc.getCommands()) as any
-          const { commands } = toAvailableCommandsFromGsdGetCommands(pi, {
+          const cmdResult = (await session.proc.getCommands()) as any
+          const { commands } = toAvailableCommandsFromGsdGetCommands(cmdResult, {
             enableSkillCommands,
             includeExtensionCommands: false
           })
@@ -819,7 +819,7 @@ export class GsdAcpAgent implements ACPAgent {
       proc = await GsdRpcProcess.spawn({
         cwd: params.cwd,
         sessionPath: sessionFile,
-        piCommand: process.env.GSD_ACP_GSD_COMMAND
+        gsdCommand: process.env.GSD_ACP_GSD_COMMAND
       })
     } catch (e: any) {
       if (e?.name === 'GsdRpcSpawnError') {
@@ -923,7 +923,7 @@ export class GsdAcpAgent implements ACPAgent {
       models,
       modes: thinking,
       _meta: {
-        piAcp: {
+        gsdAcp: {
           startupInfo: null
         }
       }
@@ -933,8 +933,8 @@ export class GsdAcpAgent implements ACPAgent {
     setTimeout(() => {
       void (async () => {
         try {
-          const pi = (await proc.getCommands()) as any
-          const { commands } = toAvailableCommandsFromGsdGetCommands(pi, {
+          const cmdResult = (await proc.getCommands()) as any
+          const { commands } = toAvailableCommandsFromGsdGetCommands(cmdResult, {
             enableSkillCommands,
             includeExtensionCommands: false
           })
@@ -1100,7 +1100,7 @@ async function getModelState(
     })
     .filter(Boolean) as ModelInfo[]
 
-  // Ask pi what model is currently active.
+  // Ask gsd what model is currently active.
   let currentModelId: string | null = null
 
   const state =

@@ -28,7 +28,7 @@ test('GsdAcpSession: emits ACP diff content for edit tool when file changes', as
   // Start edit -> snapshot should be taken
   proc.emit({ type: 'tool_execution_start', toolCallId: 't1', toolName: 'edit', args: { path: 'a.txt' } })
 
-  // Simulate file being edited by pi
+  // Simulate file being edited by gsd
   writeFileSync(filePath, 'after\n', 'utf8')
 
   proc.emit({

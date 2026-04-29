@@ -21,7 +21,7 @@ type SessionCreateParams = {
   mcpServers: McpServer[]
   conn: AgentSideConnection
   fileCommands?: import('./slash-commands.js').FileSlashCommand[]
-  piCommand?: string
+  gsdCommand?: string
 }
 
 export type StopReason = 'end_turn' | 'cancelled' | 'error'
@@ -66,7 +66,7 @@ export class SessionManager {
   private sessions = new Map<string, GsdAcpSession>()
   private readonly store = new SessionStore()
 
-  /** Dispose all sessions and their underlying pi subprocesses. */
+  /** Dispose all sessions and their underlying gsd subprocesses. */
   disposeAll(): void {
     for (const [id] of this.sessions) this.close(id)
   }
@@ -77,8 +77,8 @@ export class SessionManager {
   }
 
   /**
-   * Dispose a session's underlying pi process and remove it from the manager.
-   * Used when clients explicitly reload a session and we want a fresh pi subprocess.
+   * Dispose a session's underlying gsd process and remove it from the manager.
+   * Used when clients explicitly reload a session and we want a fresh gsd subprocess.
    */
   close(sessionId: string): void {
     const s = this.sessions.get(sessionId)
@@ -106,7 +106,7 @@ export class SessionManager {
     try {
       proc = await GsdRpcProcess.spawn({
         cwd: params.cwd,
-        piCommand: params.piCommand
+        gsdCommand: params.gsdCommand
       })
     } catch (e) {
       if (e instanceof GsdRpcSpawnError) {
@@ -190,17 +190,17 @@ export class GsdAcpSession {
   private pendingTurn: PendingTurn | null = null
   private readonly turnQueue: QueuedTurn[] = []
   // Track tool call statuses and ensure they are monotonic (pending -> in_progress -> completed).
-  // Some pi events can arrive out of order (e.g. late toolcall_* deltas after execution starts),
+  // Some gsd events can arrive out of order (e.g. late toolcall_* deltas after execution starts),
   // and clients may hide progress if we ever downgrade back to `pending`.
   private currentToolCalls = new Map<string, 'pending' | 'in_progress'>()
 
-  // pi can emit multiple `turn_end` events for a single user prompt (e.g. after tool_use).
+  // gsd can emit multiple `turn_end` events for a single user prompt (e.g. after tool_use).
   // The overall agent loop completes when `agent_end` is emitted.
   private inAgentLoop = false
 
   // For ACP diff support: capture file contents before edits, then emit ToolCallContent {type:"diff"}.
-  // This is due to pi sending diff as a string as opposed to ACP expected diff format.
-  // Compatible format may need to be implemented in pi in the future.
+  // This is due to gsd sending diff as a string as opposed to ACP expected diff format.
+  // Compatible format may need to be implemented in gsd in the future.
   private editSnapshots = new Map<string, { path: string; oldText: string }>()
 
   // Ensure `session/update` notifications are sent in order and can be awaited
@@ -246,7 +246,7 @@ export class GsdAcpSession {
 
   async prompt(message: string, images: unknown[] = []): Promise<StopReason> {
 
-    // pi RPC mode disables slash command expansion, so we do it here.
+    // gsd RPC mode disables slash command expansion, so we do it here.
     const expandedMessage = expandSlashCommand(message, this.fileCommands)
 
     const turnPromise = new Promise<StopReason>((resolve, reject) => {
@@ -270,7 +270,7 @@ export class GsdAcpSession {
         // This also not visible in the client
         this.emit({
           sessionUpdate: 'session_info_update',
-          _meta: { piAcp: { queueDepth: this.turnQueue.length, running: true } }
+          _meta: { gsdAcp: { queueDepth: this.turnQueue.length, running: true } }
         })
 
         return
@@ -297,7 +297,7 @@ export class GsdAcpSession {
       })
       this.emit({
         sessionUpdate: 'session_info_update',
-        _meta: { piAcp: { queueDepth: 0, running: Boolean(this.pendingTurn) } }
+        _meta: { gsdAcp: { queueDepth: 0, running: Boolean(this.pendingTurn) } }
       })
     }
 
@@ -337,11 +337,11 @@ export class GsdAcpSession {
     // Publish queue depth (0 because we're starting the turn now).
     this.emit({
       sessionUpdate: 'session_info_update',
-      _meta: { piAcp: { queueDepth: this.turnQueue.length, running: true } }
+      _meta: { gsdAcp: { queueDepth: this.turnQueue.length, running: true } }
     })
 
-    // Kick off pi, but completion is determined by pi events, not the RPC response.
-    // Important: pi may emit multiple `turn_end` events (e.g. when the model requests tools).
+    // Kick off gsd, but completion is determined by gsd events, not the RPC response.
+    // Important: gsd may emit multiple `turn_end` events (e.g. when the model requests tools).
     // The full prompt is finished when we see `agent_end`.
     this.proc.prompt(t.message, t.images).catch(err => {
       // If the subprocess errors before we get an `agent_end`, treat as error unless cancelled.
@@ -359,11 +359,11 @@ export class GsdAcpSession {
         this.pendingTurn = null
         this.inAgentLoop = false
 
-        // If the prompt failed, do not automatically proceed—pi may be unhealthy.
+        // If the prompt failed, do not automatically proceed—gsd may be unhealthy.
         // But we still clear the queueDepth metadata.
         this.emit({
           sessionUpdate: 'session_info_update',
-          _meta: { piAcp: { queueDepth: this.turnQueue.length, running: false } }
+          _meta: { gsdAcp: { queueDepth: this.turnQueue.length, running: false } }
         })
       })
       void err
@@ -398,7 +398,7 @@ export class GsdAcpSession {
         // while the model is still streaming tool call args.
         if (ame?.type === 'toolcall_start' || ame?.type === 'toolcall_delta' || ame?.type === 'toolcall_end') {
           const toolCall =
-            // pi sometimes includes the tool call directly on the event
+            // gsd sometimes includes the tool call directly on the event
             (ame as any)?.toolCall ??
             // ...and always includes it in the partial assistant message at contentIndex
             (ame as any)?.partial?.content?.[(ame as any)?.contentIndex ?? 0]
@@ -618,13 +618,13 @@ export class GsdAcpSession {
       }
 
       case 'turn_end': {
-        // pi uses `turn_end` for sub-steps (e.g. tool_use) and will often start another turn.
+        // gsd uses `turn_end` for sub-steps (e.g. tool_use) and will often start another turn.
         // Do NOT resolve the ACP `session/prompt` here; wait for `agent_end`.
         break
       }
 
       case 'agent_end': {
-        // Ensure all updates derived from pi events are delivered before we resolve
+        // Ensure all updates derived from gsd events are delivered before we resolve
         // the ACP `session/prompt` request.
         void this.flushEmits().finally(() => {
           const reason: StopReason = this.cancelRequested ? 'cancelled' : 'end_turn'
@@ -643,7 +643,7 @@ export class GsdAcpSession {
           } else {
             this.emit({
               sessionUpdate: 'session_info_update',
-              _meta: { piAcp: { queueDepth: 0, running: false } }
+              _meta: { gsdAcp: { queueDepth: 0, running: false } }
             })
           }
         })
@@ -680,7 +680,7 @@ function toToolKind(toolName: string): ToolKind {
       return 'edit'
     case 'bash':
       // Many ACP clients render `execute` tool calls only via the terminal APIs.
-      // Since this adapter lets pi execute locally (no client terminal delegation),
+      // Since this adapter lets gsd execute locally (no client terminal delegation),
       // we report bash as `other` so clients show inline text output blocks.
       return 'other'
     default:

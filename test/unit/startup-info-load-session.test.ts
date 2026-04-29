@@ -41,7 +41,7 @@ test('GsdAcpAgent: does not emit startup info on loadSession', async () => {
 
     const res = await agent.loadSession({ sessionId: 's1', cwd: '/tmp/project', mcpServers: [] } as any)
 
-    assert.equal((res as any)?._meta?.piAcp?.startupInfo, null)
+    assert.equal((res as any)?._meta?.gsdAcp?.startupInfo, null)
 
     // Only available_commands_update should be scheduled.
     assert.equal(timeouts.length, 1)

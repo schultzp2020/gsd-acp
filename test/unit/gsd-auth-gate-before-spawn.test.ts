@@ -8,7 +8,7 @@ import { FakeAgentSideConnection, asAgentConn } from '../helpers/fakes.js'
 
 class FakeSessions {
   async create() {
-    throw new Error('pi should not be spawned when no auth is configured')
+    throw new Error('gsd should not be spawned when no auth is configured')
   }
 }
 
