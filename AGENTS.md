@@ -1,6 +1,6 @@
-# gsd-acp (ACP adapter for gsd-pi)
+# gsd-acp (ACP adapter for gsd)
 
-This repository implements an **Agent Client Protocol (ACP)** adapter for **gsd** (`gsd-pi`) without modifying gsd.
+This repository implements an **Agent Client Protocol (ACP)** adapter for **gsd** without modifying gsd.
 
 - ACP side: **JSON-RPC 2.0 over stdio** using `@agentclientprotocol/sdk` (TypeScript)
 - Gsd side: spawn `gsd --mode rpc` and communicate via **newline-delimited JSON** over stdio

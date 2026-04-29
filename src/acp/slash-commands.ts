@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path'
 import type { AvailableCommand } from '@agentclientprotocol/sdk'
 
 /**
- * File-based slash command (mirrors gsd-pi semantics).
+ * File-based slash command (mirrors gsd semantics).
  */
 export type FileSlashCommand = {
   name: string

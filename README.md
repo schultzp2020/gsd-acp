@@ -34,7 +34,7 @@ Expect some minor breaking changes.
 Make sure gsd is installed
 
 ```bash
-npm install -g gsd-pi
+npm install -g gsd
 ```
 
 - Node.js 22+

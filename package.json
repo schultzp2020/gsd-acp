@@ -19,7 +19,7 @@
   "keywords": [
     "acp",
     "agent-client-protocol",
-    "gsd-pi",
+    "gsd",
     "adapter"
   ],
   "engines": {

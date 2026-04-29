@@ -163,7 +163,7 @@ export class GsdRpcProcess {
       const code = typeof e?.code === 'string' ? e.code : undefined
       if (code === 'ENOENT') {
         throw new GsdRpcSpawnError(
-          `Could not start gsd: executable not found (command: ${cmd}). gsd-pi needs to be installed before it can run in ACP clients. Install it via \`npm install -g gsd-pi\` or ensure \`gsd\` is on your PATH. Then try again.`,
+          `Could not start gsd: executable not found (command: ${cmd}). gsd needs to be installed before it can run in ACP clients. Install it via \`npm install -g gsd\` or ensure \`gsd\` is on your PATH. Then try again.`,
           { code, cause: e }
         )
       }

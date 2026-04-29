@@ -13,7 +13,7 @@ if (process.argv.includes('--terminal-login')) {
 
   if ((res as any).error && (res as any).error.code === 'ENOENT') {
     process.stderr.write(
-      `gsd-acp: could not start gsd (command not found: ${cmd}). Install it via \`npm install -g gsd-pi\` or ensure \`gsd\` is on your PATH.\n`
+      `gsd-acp: could not start gsd (command not found: ${cmd}). Install it via \`npm install -g gsd\` or ensure \`gsd\` is on your PATH.\n`
     )
     process.exit(1)
   }

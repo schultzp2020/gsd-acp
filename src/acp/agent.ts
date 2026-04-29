@@ -548,7 +548,7 @@ export class GsdAcpAgent implements ACPAgent {
             const npmRoot = spawnSync('npm', ['root', '-g'], { encoding: 'utf-8' })
             const root = String(npmRoot.stdout ?? '').trim()
             if (root) {
-              const p = join(root, 'gsd-pi', 'CHANGELOG.md')
+              const p = join(root, 'gsd', 'CHANGELOG.md')
               if (existsSync(p)) return p
             }
           } catch {
@@ -1166,7 +1166,7 @@ function buildUpdateNotice(): string | null {
 
     if (!installed || !isSemver(installed)) return null
 
-    const latestRes = spawnSync('npm', ['view', 'gsd-pi', 'version'], {
+    const latestRes = spawnSync('npm', ['view', 'gsd', 'version'], {
       encoding: 'utf-8',
       timeout: 800
     })
@@ -1177,7 +1177,7 @@ function buildUpdateNotice(): string | null {
     if (!latest || !isSemver(latest)) return null
     if (compareSemver(latest, installed) <= 0) return null
 
-    return `New version available: v${latest} (installed v${installed}). Run: \`npm i -g gsd-pi\``
+    return `New version available: v${latest} (installed v${installed}). Run: \`npm i -g gsd\``
   } catch {
     return null
   }
